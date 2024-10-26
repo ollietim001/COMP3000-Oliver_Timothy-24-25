@@ -1,0 +1,5 @@
+Geofencing-Microservice/geofencing-venv/
+KeyAuthority-Microservice/keyAuthority-venv/
+Geofencing-Microservice/src/__pycache__/
+KeyAuthority-Microservice/src/__pycache__/
+
