@@ -1,5 +1,8 @@
 Geofencing-Microservice/geofencing-venv/
-KeyAuthority-Microservice/keyAuthority-venv/
 Geofencing-Microservice/src/__pycache__/
+
+KeyAuthority-Microservice/keyAuthority-venv/
+KeyAuthority-Microservice/.pytest_cache/
 KeyAuthority-Microservice/src/__pycache__/
+KeyAuthority-Microservice/tests/__pycache__/
 

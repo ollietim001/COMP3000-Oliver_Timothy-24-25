@@ -1,18 +1,18 @@
-services:
-  mysql:
-    image: mysql:latest
-    container_name: mysql-geofence
-    restart: always                           # always restart if crash
-    environment:
-      MYSQL_DATABASE: 'geofence-management'   # name of database
-      MYSQL_USER: 'user123'                
-      MYSQL_PASSWORD: 'password'          
-      MYSQL_ROOT_PASSWORD: 'my-secret-pw'    
-    ports:
-      - '3306:3306'                           # host port 3306 is mapper to docker port 3306
-    expose:
-      - '3306'
-    volumes:
-      - mysql-db:/var/lib/mysql
-volumes:
-        mysql-db:
+# services:
+#   mysql:
+#     image: mysql:latest
+#     container_name: mysql-geofence
+#     restart: always                           # always restart if crash
+#     environment:
+#       MYSQL_DATABASE: 'geofence-management'   # name of database
+#       MYSQL_USER: 'user123'                
+#       MYSQL_PASSWORD: 'password'          
+#       MYSQL_ROOT_PASSWORD: 'my-secret-pw'    
+#     ports:
+#       - '3306:3306'                           # host port 3306 is mapper to docker port 3306
+#     expose:
+#       - '3306'
+#     volumes:
+#       - mysql-db:/var/lib/mysql
+# volumes:
+#         mysql-db:
