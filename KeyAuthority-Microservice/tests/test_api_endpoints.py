@@ -20,14 +20,14 @@ def test_get_public_key(client):
     
     # Parse the JSON response and verify the structure
     public_key_data = response.get_json()
-    assert "n" in public_key_data, "public_key_data should contain n"
-    assert isinstance(public_key_data["n"], int), "'n' should be an integer"
-    assert public_key_data["n"] > 0, "'n' should be a positive integer"
+    assert "public_key_n" in public_key_data, "public_key_data should contain public_key_n"
+    assert isinstance(public_key_data["public_key_n"], int), "'public_key_n' should be an integer"
+    assert public_key_data["public_key_n"] > 0, "'public_key_n' should be a positive integer"
 
 # Test the /submit-geofence-result API endpoint to ensure it processes and responds to encrypted geofence data correctly
 def test_submit_geofence_result(client):
     # Test value to be encrypted and submitted
-    test_value = 100
+    test_value = 1.1672744938776433e-15
 
     encrypted_result = public_key.encrypt(test_value)  # Encrypt the test value using the public key from the Flask app
     ciphertext_value = encrypted_result.ciphertext()   # Get the encrypted ciphertext
@@ -36,7 +36,10 @@ def test_submit_geofence_result(client):
 
     # Prepare the payload with encrypted data
     data = {
-        "encrypted_result": [ciphertext_value, exponent],
+            "encrypted_results": [
+                {"ciphertext": ciphertext_value, "exponent": exponent},
+                {"ciphertext": ciphertext_value, "exponent": exponent}
+        ],
         "public_key_n": public_key_n
     }
 

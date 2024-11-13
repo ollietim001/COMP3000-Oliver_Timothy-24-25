@@ -1,0 +1,4 @@
+Flask==3.0.3
+phe==1.5.0
+requests==2.32.3
+overpass==0.7.2
