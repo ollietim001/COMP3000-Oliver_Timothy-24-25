@@ -3,6 +3,8 @@ from phe import paillier
 import requests
 import overpass
 import math
+import time
+
 
 app = Flask(__name__)
 
@@ -27,18 +29,18 @@ def get_geofence_coordinates():
     """
 
     try:
-        # Send the query to Overpass API, requesting GeoJSON format with central coordinates
-        result = api.get(query)
+        result = api.get(query)     # Send the query to Overpass API, requesting GeoJSON format with central coordinates
 
-        # Extract lat and lon values, convert to radians
-        count = 0
+        count = 0                   
+        numGeofenceBoundaries = 10  # No. of geofence boundaries
 
+        # Extract lat and lon values, round to 5 dp, convert to radians
         for feature in result['features']:
-            if count >= 10:                                                                     # Limit to 10 sainsburys
+            if count >= numGeofenceBoundaries:                          # Limit to 'n' sainsburys
                 break
             lon, lat = feature['geometry']['coordinates']
-            lon_rounded, lat_rounded = round(lon, 4), round(lat, 4)                             
-            print(f"longitude: {lon_rounded}, latitude: {lat_rounded}")                         # Print geofences coordinates for testing
+            lon_rounded, lat_rounded = round(lon, 5), round(lat, 5)                             
+            print(f"longitude: {lon_rounded}, latitude: {lat_rounded}") # Print geofences coordinates for testing
             geofence_coordinates.append([math.radians(lon_rounded), math.radians(lat_rounded)])
             count += 1
         
@@ -135,6 +137,14 @@ def extract_encrypted_location(data, public_key):
     zeta_theta_mu_product_A = paillier.EncryptedNumber(public_key, user_location_data.get('zeta_theta_mu_product_A_ct'), user_location_data.get('zeta_theta_mu_product_A_exp'))
     zeta_mu_sq_product_A = paillier.EncryptedNumber(public_key, user_location_data.get('zeta_mu_sq_product_A_ct'), user_location_data.get('zeta_mu_sq_product_A_exp'))
     
+    # Print encrypted values to confirm they are encrypted
+    print("alpha_sq_enc:", alpha_sq)
+    print("gamma_sq_enc:", gamma_sq)
+    print("alpha_gamma_product_A_enc:", alpha_gamma_product_A)
+    print("zeta_theta_sq_product_A_enc:", zeta_theta_sq_product_A)
+    print("zeta_theta_mu_product_A_enc:", zeta_theta_mu_product_A)
+    print("zeta_mu_sq_product_A_enc:", zeta_mu_sq_product_A)
+
     # Return User's encrypted values
     return (alpha_sq, gamma_sq, alpha_gamma_product_A,
             zeta_theta_sq_product_A, zeta_theta_mu_product_A,
@@ -145,6 +155,9 @@ def calculate_intermediate_haversine_value(
         alpha_sq, gamma_sq, alpha_gamma_product_A, 
         zeta_theta_sq_product_A, zeta_theta_mu_product_A, zeta_mu_sq_product_A
         ):
+    
+    start = time.time()
+
     haversine_intermediate_values = []
 
     for center_longitude, center_latitude in geofence_coordinates: 
@@ -177,6 +190,10 @@ def calculate_intermediate_haversine_value(
         ciphertext = haversine_intermediate.ciphertext()
         exponent = haversine_intermediate.exponent
         haversine_intermediate_values.append({'ciphertext': ciphertext, 'exponent': exponent})
+
+    end = time.time()
+
+    print("(Runtime Performance Experiment) Computation Runtime:", round((end-start), 3), "s")
 
     return haversine_intermediate_values
 

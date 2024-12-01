@@ -1,7 +1,7 @@
 from flask import Flask, jsonify, request
 from phe import paillier
 import math
-
+import time
 
 app = Flask(__name__)
 
@@ -34,6 +34,8 @@ def submit_geofence_result():
             "message": "Public key mismatch. Encryption was not done with the correct public key."
         }), 400
 
+    start = time.time()
+
     haversine_intermediate_values = []
     try: 
         for entry in data['encrypted_results']:
@@ -42,6 +44,8 @@ def submit_geofence_result():
             exponent = entry.get("exponent")
 
             encrypted_result = paillier.EncryptedNumber(public_key, ciphertext_value, exponent)  # Reconstruct the EncryptedNumber objects
+            # Print encrypted values to confirm they are encrypted
+            print("encrypted_result", encrypted_result)
             haversine_intermediate = private_key.decrypt(encrypted_result)                       # Decrypt the results using the private key
             haversine_intermediate_values.append(haversine_intermediate)                         # Store the results
 
@@ -63,6 +67,10 @@ def submit_geofence_result():
             "status": "error",
             "message": "Evaluation failed. Unable to determine geofence status."
         }), 500
+    
+    end = time.time()
+    
+    print("(Runtime Performance Experiment) Decryption & Evaluation Runtime:", round((end-start), 3), "s")
 
     # Return a success response
     return jsonify({
@@ -73,13 +81,15 @@ def submit_geofence_result():
 def evaluate_geofence_result(haversine_intermediate_values):
     radius = 100            # Geofence radius in meters
     earth_radius = 6371000  # Approximate Earth radius in meters
+
+
     results = []
     for haversine_intermediate in haversine_intermediate_values:
         try:
             central_angle = 2 * math.atan2(math.sqrt(haversine_intermediate), math.sqrt(1 - haversine_intermediate))
             
             distance = earth_radius * central_angle 
-            print(f"Distance from geofence boundry: {round(distance, 2)} meters")
+            print(f"Distance from geofence centre: {round(distance, 2)} meters")
 
             # Return 1 if distance is within the radius, else 0
             results.append(1 if distance <= radius else 0)
