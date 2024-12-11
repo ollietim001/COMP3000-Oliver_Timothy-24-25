@@ -30,7 +30,6 @@ def generate_user_points(center_latitude, center_longitude, radius, earth_radius
         outside_lon = center_longitude + offset_lon * math.cos(random_theta)
         points_outside.append((outside_lat, outside_lon))
 
-
         # Generate edge points
         random_theta = random.uniform(0, 2 * math.pi)
         offset_lat = radius / earth_radius

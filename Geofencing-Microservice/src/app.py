@@ -186,16 +186,21 @@ def calculate_intermediate_haversine_value(
         term6 = zeta_mu_sq_product_A * eta_nu_sq_product_B
         haversine_intermediate = term1 + term2 + term3 + term4 + term5 + term6
 
-        # Serialize result and store
-        ciphertext = haversine_intermediate.ciphertext()
-        exponent = haversine_intermediate.exponent
-        haversine_intermediate_values.append({'ciphertext': ciphertext, 'exponent': exponent})
+        haversine_intermediate_values.append(haversine_intermediate)  # Store computation result
 
     end = time.time()
 
     print("(Runtime Performance Experiment) Computation Runtime:", round((end-start), 3), "s")
 
-    return haversine_intermediate_values
+    # Serialize results after timing ends
+    serialized_values = []
+    for intermediate_value in haversine_intermediate_values:
+        ciphertext = intermediate_value.ciphertext()
+        exponent = intermediate_value.exponent
+        serialized_values.append({'ciphertext': ciphertext, 'exponent': exponent})
+
+    return serialized_values
+
 
 def submit_geofence_results_to_key_authority(public_key_n, intermediate_values):
     try:

@@ -33,19 +33,23 @@ def submit_geofence_result():
             "status": "error",
             "message": "Public key mismatch. Encryption was not done with the correct public key."
         }), 400
+    
+    encrypted_result_list = []
+    for entry in data['encrypted_results']:
+        # Parse the encrypted results
+        ciphertext_value = entry.get("ciphertext")
+        exponent = entry.get("exponent")
+
+        encrypted_result = paillier.EncryptedNumber(public_key, ciphertext_value, exponent)  # Reconstruct the EncryptedNumber objects
+        encrypted_result_list.append(encrypted_result)
+        # Print encrypted values to confirm they are encrypted
+        print("encrypted_result", encrypted_result)
 
     start = time.time()
 
     haversine_intermediate_values = []
-    try: 
-        for entry in data['encrypted_results']:
-            # Parse the encrypted results
-            ciphertext_value = entry.get("ciphertext")
-            exponent = entry.get("exponent")
-
-            encrypted_result = paillier.EncryptedNumber(public_key, ciphertext_value, exponent)  # Reconstruct the EncryptedNumber objects
-            # Print encrypted values to confirm they are encrypted
-            print("encrypted_result", encrypted_result)
+    try:
+        for encrypted_result in encrypted_result_list: 
             haversine_intermediate = private_key.decrypt(encrypted_result)                       # Decrypt the results using the private key
             haversine_intermediate_values.append(haversine_intermediate)                         # Store the results
 
@@ -57,6 +61,10 @@ def submit_geofence_result():
     
     # Determine if Mobile Node is inside or outside the geofence based on the results
     results = evaluate_geofence_result(haversine_intermediate_values)
+
+    end = time.time()
+    print("(Runtime Performance Experiment) Decryption & Evaluation Runtime:", round((end-start), 3), "s")
+
     if 1 in results:
         print("Mobile Node is inside the geofence.")
     elif 0 in results and 1 not in results:
@@ -68,10 +76,6 @@ def submit_geofence_result():
             "message": "Evaluation failed. Unable to determine geofence status."
         }), 500
     
-    end = time.time()
-    
-    print("(Runtime Performance Experiment) Decryption & Evaluation Runtime:", round((end-start), 3), "s")
-
     # Return a success response
     return jsonify({
         "status": "success",

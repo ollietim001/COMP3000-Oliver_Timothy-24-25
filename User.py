@@ -159,7 +159,7 @@ def main():
     # Send location data to geofencing service
     send_encrypted_location_to_geofencing_service(*user_location_terms)
 
-    scalability_experiment(user_location_terms)
+    # scalability_experiment(user_location_terms)
 
 
 if __name__ == "__main__":
