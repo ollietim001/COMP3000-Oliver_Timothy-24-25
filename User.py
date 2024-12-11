@@ -142,8 +142,19 @@ def scalability_experiment(user_location_terms):
         thread.join()
 
     end_time = time.time()
-    # Total elapsed time
-    print("System runtime for", num_requests, "requests excluding encryption runtime:", round((end_time - start_time), 3), "s")
+
+
+    # Calculate total runtime
+    total_runtime = end_time - start_time
+
+    # Calculate throughput and latency
+    throughput = num_requests / total_runtime  # Queries per second
+    latency = total_runtime / num_requests     # Average time per query
+
+    # Print results
+    print(f"System runtime for {num_requests} requests excluding encryption runtime: {round(total_runtime, 3)} s")
+    print(f"Throughput: {round(throughput, 3)} queries/second")
+    print(f"Latency: {round(latency, 3)} seconds/query")
 
 
 def main():
