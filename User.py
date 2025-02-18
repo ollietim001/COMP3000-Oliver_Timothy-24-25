@@ -25,9 +25,9 @@ def get_key_authority_public_key():
         return None
 
 
-def compute_and_encrypt_user_location_terms(user_latitude, user_longitude, public_key):
+def compute_and_encrypt_user_location_terms_ref(user_latitude, user_longitude, public_key):
 
-    start = time.time()
+    start_ref = time.time()
 
     # Terms derived from User point (original, squared, combined, encrypted where applicable)
     alpha = math.cos(user_latitude / 2)
@@ -54,9 +54,9 @@ def compute_and_encrypt_user_location_terms(user_latitude, user_longitude, publi
     zeta_mu_sq_product_A = zeta * mu_sq             
     zeta_mu_sq_product_A_enc = public_key.encrypt(zeta_mu_sq_product_A)
 
-    end = time.time()
+    end_ref = time.time()
 
-    print("(Runtime Performance Experiment) Encryption Runtime:", round((end-start), 3), "s")
+    print("(Runtime Performance Experiment) Encryption Runtime Reference:", round((end_ref-start_ref), 3), "s")
 
     # Print encrypted values to confirm they are encrypted
     print("alpha_sq_enc:", alpha_sq_enc)
@@ -72,7 +72,7 @@ def compute_and_encrypt_user_location_terms(user_latitude, user_longitude, publi
             zeta_mu_sq_product_A_enc)
 
 
-def compute_and_encrypt_user_location_terms_opt(user_latitude, user_longitude, public_key):
+def compute_and_encrypt_user_location_terms_prop(user_latitude, user_longitude, public_key):
 
     start = time.time()
 
@@ -83,7 +83,7 @@ def compute_and_encrypt_user_location_terms_opt(user_latitude, user_longitude, p
 
     end = time.time()
 
-    print("(Runtime Performance Experiment) Encryption Runtime Optimised:", round((end-start), 3), "s")
+    print("(Runtime Performance Experiment) Encryption Runtime Proposed:", round((end-start), 3), "s")
 
     # Print encrypted values to confirm they are encrypted
     print("c1_enc:", c1)
@@ -93,7 +93,7 @@ def compute_and_encrypt_user_location_terms_opt(user_latitude, user_longitude, p
     return (c1, c2, c3)
 
 
-def send_encrypted_location_to_geofencing_service(
+def send_encrypted_location_to_geofencing_service_ref(
         alpha_sq_enc, gamma_sq_enc, alpha_gamma_product_A_enc, 
         zeta_theta_sq_product_A_enc, zeta_theta_mu_product_A_enc, 
         zeta_mu_sq_product_A_enc):
@@ -133,7 +133,7 @@ def send_encrypted_location_to_geofencing_service(
         
         # Make the POST request
         response = requests.post(
-            'http://localhost:5001/submit-mobile-node-location',
+            'http://localhost:5001/submit-mobile-node-location-ref',
             json=payload
         )        
     
@@ -147,7 +147,7 @@ def send_encrypted_location_to_geofencing_service(
         return None
 
 
-def send_encrypted_location_to_geofencing_service_opt(c1, c2, c3):
+def send_encrypted_location_to_geofencing_service_prop(c1, c2, c3):
 
     try:
         # Serialize the User's terms
@@ -172,7 +172,7 @@ def send_encrypted_location_to_geofencing_service_opt(c1, c2, c3):
         
         # Make the POST request
         response = requests.post(
-            'http://localhost:5001/submit-mobile-node-location-opt',
+            'http://localhost:5001/submit-mobile-node-location-prop',
             json=payload
         )        
     
@@ -186,58 +186,56 @@ def send_encrypted_location_to_geofencing_service_opt(c1, c2, c3):
         return None
 
 
-def scalability_experiment(user_location_terms, user_location_terms_opt):
+def scalability_experiment(user_location_terms_ref, user_location_terms_prop, num_requests):
     
-    num_requests = 10   # Number of concurrent requests
-
-    # Simulate multiple requests
-    start_time = time.time()
+    # Simulate multiple requests Referemce system
+    start_time_ref = time.time()
     threads = []
     for i in range(num_requests):
         # Send location data to geofencing service
-        thread = threading.Thread(target=send_encrypted_location_to_geofencing_service, args=(user_location_terms)) 
+        thread = threading.Thread(target=send_encrypted_location_to_geofencing_service_ref, args=(user_location_terms_ref)) 
         threads.append(thread)
         thread.start()
 
     for thread in threads:
         thread.join()
 
-    end_time = time.time()
+    end_time_ref = time.time()
 
-    # Simulate multiple requests optimised system
-    start_time_opt = time.time()
+    # Simulate multiple requests Proposed system
+    start_time_prop = time.time()
     threads = []
     for i in range(num_requests):
         # Send location data to geofencing service
-        thread = threading.Thread(target=send_encrypted_location_to_geofencing_service_opt, args=(user_location_terms_opt)) 
+        thread = threading.Thread(target=send_encrypted_location_to_geofencing_service_prop, args=(user_location_terms_prop)) 
         threads.append(thread)
         thread.start()
 
     for thread in threads:
         thread.join()
 
-    end_time_opt = time.time()
+    end_time_prop = time.time()
 
 
     # Calculate total runtime
-    total_runtime = end_time - start_time
-    total_runtime_opt = end_time_opt - start_time_opt
+    total_runtime_ref = end_time_ref - start_time_ref
+    total_runtime_prop = end_time_prop - start_time_prop
 
     # Calculate throughput and latency
-    throughput = num_requests / total_runtime  # Queries per second
-    throughput_opt = num_requests / total_runtime_opt
-    latency = total_runtime / num_requests     # Average time per query
-    latency_opt = total_runtime_opt / num_requests
+    throughput_ref = num_requests / total_runtime_ref  # Queries per second
+    throughput_prop = num_requests / total_runtime_prop
+    latency_ref = total_runtime_ref / num_requests     # Average time per query
+    latency_prop = total_runtime_prop / num_requests
 
-    # Print results
-    print(f"System runtime for {num_requests} requests excluding encryption runtime: {round(total_runtime, 3)} s")
-    print(f"Throughput: {round(throughput, 3)} queries/second")
-    print(f"Latency: {round(latency, 3)} seconds/query")
+    # Print results Reference system
+    print(f"System runtime for {num_requests} requests excluding encryption runtime: {round(total_runtime_ref, 3)} s")
+    print(f"Throughput: {round(throughput_ref, 3)} queries/second")
+    print(f"Latency: {round(latency_ref, 3)} seconds/query")
 
-    # Print results optimised system
-    print(f"Optimised system runtime for {num_requests} requests excluding encryption runtime: {round(total_runtime_opt, 3)} s")
-    print(f"Optimised throughput: {round(throughput_opt, 3)} queries/second")
-    print(f"Optimised latency: {round(latency_opt, 3)} seconds/query")
+    # Print results Proposed system
+    print(f"Proposed system runtime for {num_requests} requests excluding encryption runtime: {round(total_runtime_prop, 3)} s")
+    print(f"Proposed system throughput: {round(throughput_prop, 3)} queries/second")
+    print(f"Proposed system latency: {round(latency_prop, 3)} seconds/query")
 
 
 def main():
@@ -248,16 +246,16 @@ def main():
     user_latitude, user_longitude = math.radians(round(50.73341, 5)), math.radians(round(-3.48111, 5))
 
     # Precompute terms for use in haversine calculation
-    user_location_terms = compute_and_encrypt_user_location_terms(user_latitude, user_longitude, public_key)
+    user_location_terms = compute_and_encrypt_user_location_terms_ref(user_latitude, user_longitude, public_key)
 
-    # Optimised geofencing system
-    user_location_terms_opt = compute_and_encrypt_user_location_terms_opt(user_latitude, user_longitude, public_key)
+    # Proposed geofencing system
+    user_location_terms_prop = compute_and_encrypt_user_location_terms_prop(user_latitude, user_longitude, public_key)
 
-    # Send location data to geofencing service
-    # send_encrypted_location_to_geofencing_service(*user_location_terms)
-    # send_encrypted_location_to_geofencing_service_opt(*user_location_terms_opt)
+    # Send location data to geofencing service (Uncomment these and comment scalability test to do runtime performance test)
+    # send_encrypted_location_to_geofencing_service_ref(*user_location_terms)
+    # send_encrypted_location_to_geofencing_service_prop(*user_location_terms_prop)
 
-    scalability_experiment(user_location_terms, user_location_terms_opt)
+    scalability_experiment(user_location_terms, user_location_terms_prop, num_requests=10)
 
 
 if __name__ == "__main__":

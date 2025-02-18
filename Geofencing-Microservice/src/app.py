@@ -13,30 +13,30 @@ geofence_coordinates = []
 
 def get_geofence_coordinates():
     global geofence_coordinates  # Store globally
-    api = overpass.API()         # Initialize Overpass API
+    api = overpass.API(timeout=600)        # Initialize Overpass API
 
-    # Define the Overpass query for Sainsbury's supermarkets, using 'out center' to get a single lat/lon for each feature
+    # Define the Overpass query for cafes, to get a single lat/lon for each feature
     # Select individual point locations (nodes)
-    # Select linear features or area outlines (ways) e.g. road
-    # Select groups of elements (relations), e.g. nodes, ways and other relations
     query = """
-    (
-      node["shop"="supermarket"]["name"="Sainsbury's"];
-      way["shop"="supermarket"]["name"="Sainsbury's"];
-      relation["shop"="supermarket"]["name"="Sainsbury's"];
-    );
-    out center qt;
+    node["amenity"="cafe"](50.0,-10.0,60.0,2.0);
+    out qt 10000;
     """
 
     try:
         result = api.get(query)     # Send the query to Overpass API, requesting GeoJSON format with central coordinates
+        num_coordinates = len(result['features'])
+        print(f"Total lon-lat pairs: {num_coordinates}")
 
         count = 0                   
-        numGeofenceBoundaries = 10  # No. of geofence boundaries
+        numGeofenceBoundaries = 10  # No. of geofence boundaries (Change this if you want more geofences)
+
+        # Raise an exception if there are fewer coordinates than required geofence boundaries
+        if num_coordinates < numGeofenceBoundaries:
+            raise ValueError(f"Insufficient coordinates: Found {num_coordinates}, but need at least {numGeofenceBoundaries}")
 
         # Extract lat and lon values, round to 5 dp, convert to radians
         for feature in result['features']:
-            if count >= numGeofenceBoundaries:                          # Limit to 'n' sainsburys
+            if count >= numGeofenceBoundaries:                          # Limit to 'n' Cafes
                 break
             lon, lat = feature['geometry']['coordinates']
             lon_rounded, lat_rounded = round(lon, 5), round(lat, 5)                             
@@ -44,6 +44,7 @@ def get_geofence_coordinates():
             geofence_coordinates.append([math.radians(lon_rounded), math.radians(lat_rounded)])
             count += 1
         
+        print(f"Number of processed geofence coordinates: {len(geofence_coordinates)}")
         print("Geofence coordinates fetched successfully.")
     except Exception as e:
         print(f"Failed to fetch geofence coordinates: {e}")
@@ -51,8 +52,8 @@ def get_geofence_coordinates():
 # Fetch the geofence point coordinates once at startup
 get_geofence_coordinates()
 
-@app.route("/submit-mobile-node-location", methods=['POST'])
-def submit_mobile_node_location():
+@app.route("/submit-mobile-node-location-ref", methods=['POST'])
+def submit_mobile_node_location_ref():
     # Retrieve JSON payload
     data = request.get_json()
     
@@ -80,13 +81,13 @@ def submit_mobile_node_location():
         }), 400
     
     # Extract the user's values from the data
-    encrypted_values = extract_encrypted_location(data, public_key)
+    encrypted_values = extract_encrypted_location_ref(data, public_key)
 
     # Calculate intermediate values for key authority to decrypt
-    intermediate_values = calculate_intermediate_haversine_value(*encrypted_values)
+    intermediate_values = calculate_intermediate_haversine_value_ref(*encrypted_values)
 
     # Submit intermediate values to key authority
-    submit_geofence_results_to_key_authority(public_key_n_current, intermediate_values)
+    submit_ref_geofence_results_to_key_authority(public_key_n_current, intermediate_values)
 
     # Return a success response
     return jsonify({
@@ -95,8 +96,8 @@ def submit_mobile_node_location():
     }), 200
 
 
-@app.route("/submit-mobile-node-location-opt", methods=['POST'])
-def submit_mobile_node_location_opt():
+@app.route("/submit-mobile-node-location-prop", methods=['POST'])
+def submit_mobile_node_location_prop():
     # Retrieve JSON payload
     data = request.get_json()
     
@@ -124,13 +125,13 @@ def submit_mobile_node_location_opt():
         }), 400
     
     # Extract the user's values from the data
-    encrypted_values = extract_encrypted_location_opt(data, public_key)
+    encrypted_values = extract_encrypted_location_prop(data, public_key)
 
     # Calculate intermediate values for key authority to decrypt
-    intermediate_values = calculate_intermediate_haversine_value_opt(*encrypted_values)
+    intermediate_values = calculate_intermediate_haversine_value_prop(*encrypted_values)
 
     # Submit intermediate values to key authority
-    submit_opt_geofence_results_to_key_authority(public_key_n_current, intermediate_values)
+    submit_prop_geofence_results_to_key_authority(public_key_n_current, intermediate_values)
 
     # Return a success response
     return jsonify({
@@ -152,7 +153,7 @@ def get_key_authority_public_key():
         return None
     
 
-def extract_encrypted_location(data, public_key):
+def extract_encrypted_location_ref(data, public_key):
     # Define the required keys for 'user_encrypted_location'
     required_keys = [
         'alpha_sq_ct', 'alpha_sq_exp',
@@ -194,7 +195,7 @@ def extract_encrypted_location(data, public_key):
             zeta_theta_sq_product_A, zeta_theta_mu_product_A,
             zeta_mu_sq_product_A)
 
-def extract_encrypted_location_opt(data, public_key):
+def extract_encrypted_location_prop(data, public_key):
     # Define the required keys for 'user_encrypted_location'
     required_keys = [
         'c1_ct', 'c1_exp',
@@ -226,7 +227,7 @@ def extract_encrypted_location_opt(data, public_key):
     # Return User's encrypted values
     return (c1, c2, c3)
 
-def calculate_intermediate_haversine_value(
+def calculate_intermediate_haversine_value_ref(
         alpha_sq, gamma_sq, alpha_gamma_product_A, 
         zeta_theta_sq_product_A, zeta_theta_mu_product_A, zeta_mu_sq_product_A
         ):
@@ -265,7 +266,7 @@ def calculate_intermediate_haversine_value(
 
     end = time.time()
 
-    print("(Runtime Performance Experiment) Computation Runtime:", round((end-start), 3), "s")
+    print("(Runtime Performance Experiment) Computation Runtime Reference:", round((end-start), 3), "s")
 
     # Serialize results after timing ends
     serialized_values = []
@@ -277,7 +278,7 @@ def calculate_intermediate_haversine_value(
     return serialized_values
 
 
-def calculate_intermediate_haversine_value_opt(c1, c2, c3):
+def calculate_intermediate_haversine_value_prop(c1, c2, c3):
     
     start = time.time()
 
@@ -292,7 +293,7 @@ def calculate_intermediate_haversine_value_opt(c1, c2, c3):
 
     end = time.time()
 
-    print("(Runtime Performance Experiment) Computation Runtime Optimised:", round((end-start), 3), "s")
+    print("(Runtime Performance Experiment) Computation Runtime Proposed:", round((end-start), 3), "s")
 
     # Serialize results after timing ends
     serialized_values = []
@@ -304,7 +305,7 @@ def calculate_intermediate_haversine_value_opt(c1, c2, c3):
     return serialized_values
 
 
-def submit_geofence_results_to_key_authority(public_key_n, intermediate_values):
+def submit_ref_geofence_results_to_key_authority(public_key_n, intermediate_values):
     try:
         payload = {
             "public_key_n": public_key_n,
@@ -313,7 +314,7 @@ def submit_geofence_results_to_key_authority(public_key_n, intermediate_values):
         
         # Make the POST request
         response = requests.post(
-            'http://keyauthority:5002/submit-geofence-result',
+            'http://keyauthority:5002/submit-geofence-result-ref',
             json=payload
         )        
         
@@ -327,7 +328,7 @@ def submit_geofence_results_to_key_authority(public_key_n, intermediate_values):
         return None
 
    
-def submit_opt_geofence_results_to_key_authority(public_key_n, intermediate_values):
+def submit_prop_geofence_results_to_key_authority(public_key_n, intermediate_values):
     try:
         payload = {
             "public_key_n": public_key_n,
@@ -336,7 +337,7 @@ def submit_opt_geofence_results_to_key_authority(public_key_n, intermediate_valu
         
         # Make the POST request
         response = requests.post(
-            'http://keyauthority:5002/submit-geofence-result-opt',
+            'http://keyauthority:5002/submit-geofence-result-prop',
             json=payload
         )        
         

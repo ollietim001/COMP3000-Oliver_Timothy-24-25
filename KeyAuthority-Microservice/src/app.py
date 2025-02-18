@@ -17,7 +17,7 @@ def get_public_key():
     }
     return jsonify(public_key_data)
 
-@app.route("/submit-geofence-result", methods=['POST'])
+@app.route("/submit-geofence-result-ref", methods=['POST'])
 def submit_geofence_result():
     # Retrieve JSON payload
     data = request.get_json()
@@ -65,7 +65,7 @@ def submit_geofence_result():
     results = evaluate_geofence_result(haversine_intermediate_values)
 
     end = time.time()
-    print("(Runtime Performance Experiment) Decryption & Evaluation Runtime:", round((end-start), 3), "s")
+    print("(Runtime Performance Experiment) Decryption & Evaluation Runtime Reference:", round((end-start), 3), "s")
 
     if 1 in results:
         print("Mobile Node is inside the geofence.")
@@ -84,8 +84,8 @@ def submit_geofence_result():
         "message": "Geofence result processed successfully"
     }), 200
 
-@app.route("/submit-geofence-result-opt", methods=['POST'])
-def submit_geofence_result_opt():
+@app.route("/submit-geofence-result-prop", methods=['POST'])
+def submit_geofence_result_prop():
     # Retrieve JSON payload
     data = request.get_json()
 
@@ -114,7 +114,7 @@ def submit_geofence_result_opt():
         # Print encrypted values to confirm they are encrypted
         print("encrypted_result", encrypted_result)
     
-    start_opt = time.time()
+    start_prop = time.time()
 
     haversine_intermediate_values = []
     try:
@@ -129,10 +129,10 @@ def submit_geofence_result_opt():
         }), 500
     
     # Determine if Mobile Node is inside or outside the geofence based on the results
-    results = evaluate_geofence_result_opt(haversine_intermediate_values)
+    results = evaluate_geofence_result_prop(haversine_intermediate_values)
 
-    end_opt = time.time()
-    print("(Runtime Performance Experiment) Decryption & Evaluation Runtime Optimised:", round((end_opt-start_opt), 3), "s")
+    end_prop = time.time()
+    print("(Runtime Performance Experiment) Decryption & Evaluation Runtime Proposed:", round((end_prop-start_prop), 3), "s")
 
     if 1 in results:
         print("Mobile Node is inside the geofence.")
@@ -170,7 +170,7 @@ def evaluate_geofence_result(haversine_intermediate_values):
     
     return results
 
-def evaluate_geofence_result_opt(haversine_intermediate_values):
+def evaluate_geofence_result_prop(haversine_intermediate_values):
     results = []
     for haversine_intermediate in haversine_intermediate_values:
         try:

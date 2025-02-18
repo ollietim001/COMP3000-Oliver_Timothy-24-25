@@ -58,8 +58,9 @@ def initialize_keys():
     public_key, private_key = paillier.generate_paillier_keypair()
     return public_key, private_key
 
+# Reference encrypted haversine system
 
-def precompute_user_terms(user_latitude, user_longitude, public_key):
+def ref_precompute_user_terms(user_latitude, user_longitude, public_key):
     # Terms derived from User point (original, squared, combined, encrypted where applicable)
     alpha = math.cos(user_latitude / 2)
     alpha_sq = alpha**2
@@ -96,7 +97,7 @@ def precompute_user_terms(user_latitude, user_longitude, public_key):
     }
 
 
-def calculate_intermediate_haversine_value(user_precomputed, center_latitude, center_longitude):
+def ref_calculate_intermediate_haversine_value(user_precomputed, center_latitude, center_longitude):
     # Extract precomputed user terms
     alpha_sq_enc = user_precomputed['alpha_sq_enc']
     gamma_sq_enc = user_precomputed['gamma_sq_enc']
@@ -133,7 +134,7 @@ def calculate_intermediate_haversine_value(user_precomputed, center_latitude, ce
     return haversine_intermediate
 
 
-def evaluate_geofence_encrypted(encrypted_result, radius, earth_radius, private_key):
+def ref_evaluate_geofence_encrypted(encrypted_result, radius, earth_radius, private_key):
     haversine_intermediate = private_key.decrypt(encrypted_result)
 
     central_angle = 2 * math.atan2(math.sqrt(haversine_intermediate), math.sqrt(1 - haversine_intermediate))
@@ -144,9 +145,10 @@ def evaluate_geofence_encrypted(encrypted_result, radius, earth_radius, private_
     # Return 1 if distance is within the radius, else 0
     return 1 if distance <= radius else 0
 
+# End of Reference encrypted haversine system
 
-# Optimised encrypted haversine solution
-def opt_precompute_user_terms(user_latitude, user_longitude, public_key):
+# Proposed encrypted haversine system
+def prop_precompute_user_terms(user_latitude, user_longitude, public_key):
     # Terms derived from User point
     c1 = public_key.encrypt(math.sin(user_latitude))
     c2 = public_key.encrypt(math.cos(user_latitude) * math.cos(user_longitude))
@@ -160,7 +162,7 @@ def opt_precompute_user_terms(user_latitude, user_longitude, public_key):
     }
 
 
-def opt_calculate_intermediate_haversine_value(user_precomputed, center_latitude, center_longitude):
+def prop_calculate_intermediate_haversine_value(user_precomputed, center_latitude, center_longitude):
     # Extract precomputed user terms
     c1 = user_precomputed['c1']
     c2 = user_precomputed['c2']
@@ -171,7 +173,7 @@ def opt_calculate_intermediate_haversine_value(user_precomputed, center_latitude
     return a
 
 
-def opt_evaluate_geofence_encrypted(encrypted_result, radius, earth_radius, private_key):
+def prop_evaluate_geofence_encrypted(encrypted_result, radius, earth_radius, private_key):
     haversine_intermediate = private_key.decrypt(encrypted_result)
 
     distance = 2 * earth_radius * math.asin(math.sqrt(haversine_intermediate / 2))
@@ -180,7 +182,7 @@ def opt_evaluate_geofence_encrypted(encrypted_result, radius, earth_radius, priv
     # Return 1 if distance is within the radius, else 0
     return 1 if distance <= radius else 0
 
-# End of optimised encrypted haversine solution
+# End of Proposed encrypted haversine system
 
 
 def security_overhead_exeperiment(user_latitude, user_longitude, center_latitude, center_longitude, radius, earth_radius, public_key, private_key):
@@ -201,46 +203,46 @@ def security_overhead_exeperiment(user_latitude, user_longitude, center_latitude
 
         average_runtime = sum(runtimes) / len(runtimes)
 
-        start_encrypted_system = time.time()
+        start_encrypted_system_ref = time.time()
 
         for i in range(num_encryptions):
             # Encrypt user terms
-            user_precomputed = precompute_user_terms(user_latitude, user_longitude, public_key)
+            user_precomputed_ref = ref_precompute_user_terms(user_latitude, user_longitude, public_key)
 
             # Calculate haversine intermediate value
-            encrypted_result = calculate_intermediate_haversine_value(user_precomputed, center_latitude, center_longitude)
+            encrypted_result_ref = ref_calculate_intermediate_haversine_value(user_precomputed_ref, center_latitude, center_longitude)
 
             # Check if inside geofence
-            evaluate_geofence_encrypted(encrypted_result, radius, earth_radius, private_key)
+            ref_evaluate_geofence_encrypted(encrypted_result_ref, radius, earth_radius, private_key)
 
-        end_encrypted_system = time.time()
+        end_encrypted_system_ref = time.time()
 
-        runtime_encrypted_system = (end_encrypted_system - start_encrypted_system)
+        runtime_encrypted_system_ref = (end_encrypted_system_ref - start_encrypted_system_ref)
 
-        start_encrypted_system_opt = time.time()
+        start_encrypted_system_prop = time.time()
 
         for i in range(num_encryptions):
             # Encrypt user terms
-            user_precomputed_opt = opt_precompute_user_terms(user_latitude, user_longitude, public_key)
+            user_precomputed_prop = prop_precompute_user_terms(user_latitude, user_longitude, public_key)
 
             # Calculate haversine intermediate value
-            encrypted_result_opt = opt_calculate_intermediate_haversine_value(user_precomputed_opt, center_latitude, center_longitude)
+            encrypted_result_prop = prop_calculate_intermediate_haversine_value(user_precomputed_prop, center_latitude, center_longitude)
 
             # Check if inside geofence
-            opt_evaluate_geofence_encrypted(encrypted_result_opt, radius, earth_radius, private_key)
+            prop_evaluate_geofence_encrypted(encrypted_result_prop, radius, earth_radius, private_key)
         
-        end_encrypted_system_opt = time.time()
+        end_encrypted_system_prop = time.time()
 
-        runtime_encrypted_system_opt = (end_encrypted_system_opt - start_encrypted_system_opt)
+        runtime_encrypted_system_prop = (end_encrypted_system_prop - start_encrypted_system_prop)
 
-        overhead = ((runtime_encrypted_system - average_runtime) / average_runtime) * 100
-        overhead_opt = ((runtime_encrypted_system_opt - average_runtime) / average_runtime) * 100
+        overhead = ((runtime_encrypted_system_ref - average_runtime) / average_runtime) * 100
+        overhead_prop = ((runtime_encrypted_system_prop - average_runtime) / average_runtime) * 100
 
-        runtime_results.append((num_encryptions, average_runtime, runtime_encrypted_system, overhead, runtime_encrypted_system_opt, overhead_opt))
+        runtime_results.append((num_encryptions, average_runtime, runtime_encrypted_system_ref, overhead, runtime_encrypted_system_prop, overhead_prop))
 
     
-    head = ["Number of Encryptions", "Baseline Runtime (s)", "Unoptimised encrypted Runtime (s)", "Unoptimised overhead (%)", 
-            "Optimised encrypted Runtime (s)", "Optimised overhead (%)"]
+    head = ["Number of Encryptions", "Baseline Runtime (s)", "Reference encrypted Runtime (s)", "Reference overhead (%)", 
+            "Proposed encrypted Runtime (s)", "Proposed overhead (%)"]
     
     print(tabulate(runtime_results, headers=head, tablefmt="grid"))
 
@@ -251,36 +253,36 @@ def accuracy_experiment(center_latitude, center_longitude, radius, earth_radius,
         # Establish ground truth
         ground_truth = "Inside" if evaluate_geofence(user_latitude, user_longitude, center_latitude, center_longitude, radius, earth_radius) else "Outside"
 
-        # Unoptimised encrypted system
-        user_precomputed = precompute_user_terms(user_latitude, user_longitude, public_key)
-        encrypted_result = calculate_intermediate_haversine_value(user_precomputed, center_latitude, center_longitude)
-        system_result = "Inside" if evaluate_geofence_encrypted(encrypted_result, radius, earth_radius, private_key) else "Outside"
+        # Reference encrypted system
+        user_precomputed_ref = ref_precompute_user_terms(user_latitude, user_longitude, public_key)
+        encrypted_result_ref = ref_calculate_intermediate_haversine_value(user_precomputed_ref, center_latitude, center_longitude)
+        system_result_ref = "Inside" if ref_evaluate_geofence_encrypted(encrypted_result_ref, radius, earth_radius, private_key) else "Outside"
 
-        # Optimised encrypted system
-        user_precomputed_opt = opt_precompute_user_terms(user_latitude, user_longitude, public_key)
-        encrypted_result_opt = opt_calculate_intermediate_haversine_value(user_precomputed_opt, center_latitude, center_longitude)
-        system_result_opt = "Inside" if opt_evaluate_geofence_encrypted(encrypted_result_opt, radius, earth_radius, private_key) else "Outside"
+        # Proposed encrypted system
+        user_precomputed_prop = prop_precompute_user_terms(user_latitude, user_longitude, public_key)
+        encrypted_result_prop = prop_calculate_intermediate_haversine_value(user_precomputed_prop, center_latitude, center_longitude)
+        system_result_prop = "Inside" if prop_evaluate_geofence_encrypted(encrypted_result_prop, radius, earth_radius, private_key) else "Outside"
 
         # Check if both systems are correctly identifying if a point is inside/outside
-        final_result = "Correct" if ground_truth == system_result else "Incorrect"
-        final_result_opt = "Correct" if ground_truth == system_result_opt else "Incorrect"
+        final_result_ref = "Correct" if ground_truth == system_result_ref else "Incorrect"
+        final_result_prop = "Correct" if ground_truth == system_result_prop else "Incorrect"
 
-        accuracy_results.append((user_latitude, user_longitude, ground_truth, system_result, final_result, 
-                                 system_result_opt, final_result_opt))
+        accuracy_results.append((user_latitude, user_longitude, ground_truth, system_result_ref, final_result_ref, 
+                                 system_result_prop, final_result_prop))
 
-    head = ["Latitude", "Longitude", "Ground Truth", "Unoptimised Result", "Unoptimised Correct/Incorrect",
-            "Optimised result", "Optimised Correct/Incorrect"]
+    head = ["Latitude", "Longitude", "Ground Truth", "Reference Result", "Reference Correct/Incorrect",
+            "Proposed result", "Proposed Correct/Incorrect"]
     
     print(tabulate(accuracy_results, headers=head, tablefmt="grid"))
     
-    correct_count = sum(1 for test_point in accuracy_results if test_point[4] == "Correct")
-    accuracy = correct_count / len(accuracy_results) * 100
+    correct_count_ref = sum(1 for test_point in accuracy_results if test_point[4] == "Correct")
+    accuracy_ref = correct_count_ref / len(accuracy_results) * 100
 
-    correct_count_opt = sum(1 for test_point in accuracy_results if test_point[6] == "Correct")
-    accuracy_opt = correct_count_opt / len(accuracy_results) * 100
+    correct_count_prop = sum(1 for test_point in accuracy_results if test_point[6] == "Correct")
+    accuracy_prop = correct_count_prop / len(accuracy_results) * 100
 
-    print(f"Accuracy of unoptimised encrypted system: {accuracy}")
-    print(f"Accuracy of optimised encrypted system: {accuracy_opt}")
+    print(f"Accuracy of Reference encrypted system: {accuracy_ref}")
+    print(f"Accuracy of Proposed encrypted system: {accuracy_prop}")
 
 
 def plot_geofence(center_latitude, center_longitude, radius, earth_radius, points_inside, points_outside, points_edge):
