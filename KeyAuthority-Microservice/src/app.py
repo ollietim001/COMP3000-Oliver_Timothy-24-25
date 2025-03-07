@@ -36,29 +36,22 @@ def submit_geofence_result():
             "message": "Public key mismatch. Encryption was not done with the correct public key."
         }), 400
     
-    encrypted_result_list = []
-    for entry in data['encrypted_results']:
-        # Parse the encrypted results
-        ciphertext_value = entry.get("ciphertext")
-        exponent = entry.get("exponent")
+    encrypted_result_list = parse_encrypted_results(data['encrypted_results'], public_key)
 
-        encrypted_result = paillier.EncryptedNumber(public_key, ciphertext_value, exponent)  # Reconstruct the EncryptedNumber objects
-        encrypted_result_list.append(encrypted_result)
-        # Print encrypted values to confirm they are encrypted
-        print("encrypted_result", encrypted_result)
+    if encrypted_result_list is None:
+        return jsonify({
+            "status": "error",
+            "message": "Invalid encrypted results"
+        }), 400
 
     start = time.time()
 
-    haversine_intermediate_values = []
-    try:
-        for encrypted_result in encrypted_result_list: 
-            haversine_intermediate = private_key.decrypt(encrypted_result)                       # Decrypt the results using the private key
-            haversine_intermediate_values.append(haversine_intermediate)                         # Store the results
+    haversine_intermediate_values = decrypt_encrypted_results(encrypted_result_list, private_key)
 
-    except Exception:
+    if haversine_intermediate_values is None:
         return jsonify({
             "status": "error",
-            "message": "Couldnt Decrypt encrypted results",
+            "message": "Couldn't decrypt encrypted results",
         }), 500
     
     # Determine if Mobile Node is inside or outside the geofence based on the results
@@ -84,6 +77,8 @@ def submit_geofence_result():
         "message": "Geofence result processed successfully"
     }), 200
 
+
+
 @app.route("/submit-geofence-result-prop", methods=['POST'])
 def submit_geofence_result_prop():
     # Retrieve JSON payload
@@ -103,31 +98,24 @@ def submit_geofence_result_prop():
             "message": "Public key mismatch. Encryption was not done with the correct public key."
         }), 400
     
-    encrypted_result_list = []
-    for entry in data['encrypted_results']:
-        # Parse the encrypted results
-        ciphertext_value = entry.get("ciphertext")
-        exponent = entry.get("exponent")
+    encrypted_result_list = parse_encrypted_results(data['encrypted_results'], public_key)
 
-        encrypted_result = paillier.EncryptedNumber(public_key, ciphertext_value, exponent)  # Reconstruct the EncryptedNumber objects
-        encrypted_result_list.append(encrypted_result)
-        # Print encrypted values to confirm they are encrypted
-        print("encrypted_result", encrypted_result)
+    if encrypted_result_list is None:
+        return jsonify({
+            "status": "error",
+            "message": "Invalid encrypted results"
+        }), 400
     
     start_prop = time.time()
 
-    haversine_intermediate_values = []
-    try:
-        for encrypted_result in encrypted_result_list: 
-            haversine_intermediate = private_key.decrypt(encrypted_result)                       # Decrypt the results using the private key
-            haversine_intermediate_values.append(haversine_intermediate)                         # Store the results
+    haversine_intermediate_values = decrypt_encrypted_results(encrypted_result_list, private_key)
 
-    except Exception:
+    if haversine_intermediate_values is None:
         return jsonify({
             "status": "error",
-            "message": "Couldnt Decrypt encrypted results",
+            "message": "Couldn't decrypt encrypted results",
         }), 500
-    
+
     # Determine if Mobile Node is inside or outside the geofence based on the results
     results = evaluate_geofence_result_prop(haversine_intermediate_values)
 
@@ -170,6 +158,7 @@ def evaluate_geofence_result(haversine_intermediate_values):
     
     return results
 
+
 def evaluate_geofence_result_prop(haversine_intermediate_values):
     results = []
     for haversine_intermediate in haversine_intermediate_values:
@@ -185,6 +174,43 @@ def evaluate_geofence_result_prop(haversine_intermediate_values):
             return None
     
     return results
+
+
+def parse_encrypted_results(encrypted_results, public_key):
+    encrypted_result_list = []
+    
+    try:
+        for entry in encrypted_results:
+            # Parse the encrypted results
+            ciphertext_value = entry.get("ciphertext")
+            exponent = entry.get("exponent")
+
+            if ciphertext_value is None or exponent is None:
+                raise ValueError("Missing ciphertext or exponent in encrypted result entry")
+
+            encrypted_result = paillier.EncryptedNumber(public_key, ciphertext_value, exponent) # Reconstruct the EncryptedNumber objects
+            encrypted_result_list.append(encrypted_result)
+            # Print encrypted values to confirm they are encrypted
+            print("encrypted result:", encrypted_result)
+
+        return encrypted_result_list
+    except Exception as e:
+        print(f"Error parsing encrypted results: {e}")
+        return None
+
+
+def decrypt_encrypted_results(encrypted_result_list, private_key):
+    decrypted_values = []
+    
+    try:
+        for encrypted_result in encrypted_result_list:
+            decrypted_value = private_key.decrypt(encrypted_result)     # Decrypt the results using the private key
+            decrypted_values.append(decrypted_value)                    # Store the results
+        
+        return decrypted_values
+    except Exception as e:
+        print(f"Error decrypting encrypted results: {e}")
+        return None
 
 
 if __name__ == '__main__':

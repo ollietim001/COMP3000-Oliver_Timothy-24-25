@@ -323,9 +323,9 @@ def main():
     earth_radius = 6371000  # Earth's radius in meters
 
     # User's location in radians
-    user_latitude, user_longitude = math.radians(round(50.7333, 5)), math.radians(round(-3.4800, 5))
+    user_latitude, user_longitude = math.radians(round(51.573037, 5)), math.radians(round(-9.724087, 5))
     # Geofence center in radians
-    center_latitude, center_longitude = math.radians(round(50.7333, 5)), math.radians(round(-3.4800, 5))
+    center_latitude, center_longitude = math.radians(round(51.651051, 6)), math.radians(round(-9.910685, 6))
 
     # Quantify the additional runtime and resource overhead introduced by encryption 
     security_overhead_exeperiment(user_latitude, user_longitude, center_latitude, center_longitude, radius, earth_radius, public_key, private_key)

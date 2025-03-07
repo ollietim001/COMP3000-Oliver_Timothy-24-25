@@ -13,7 +13,8 @@ geofence_coordinates = []
 
 def get_geofence_coordinates():
     global geofence_coordinates  # Store globally
-    api = overpass.API(timeout=600)        # Initialize Overpass API
+    # Initialize Overpass API
+    api = overpass.API(timeout=60000)  # 60s timeout (If timeout error occurs: Increase for runtime testing; otherwise, reduce 'out qt 10000 to 100' reducing number of geofences fetched)
 
     # Define the Overpass query for cafes, to get a single lat/lon for each feature
     # Select individual point locations (nodes)
@@ -28,7 +29,7 @@ def get_geofence_coordinates():
         print(f"Total lon-lat pairs: {num_coordinates}")
 
         count = 0                   
-        numGeofenceBoundaries = 10  # No. of geofence boundaries (Change this if you want more geofences)
+        numGeofenceBoundaries = 10  # No. of geofence boundaries (Change this if you want more geofences, note this must not exceed 'out qt' value)
 
         # Raise an exception if there are fewer coordinates than required geofence boundaries
         if num_coordinates < numGeofenceBoundaries:
@@ -39,7 +40,7 @@ def get_geofence_coordinates():
             if count >= numGeofenceBoundaries:                          # Limit to 'n' Cafes
                 break
             lon, lat = feature['geometry']['coordinates']
-            lon_rounded, lat_rounded = round(lon, 5), round(lat, 5)                             
+            lon_rounded, lat_rounded = round(lon, 6), round(lat, 6)                             
             print(f"longitude: {lon_rounded}, latitude: {lat_rounded}") # Print geofences coordinates for testing
             geofence_coordinates.append([math.radians(lon_rounded), math.radians(lat_rounded)])
             count += 1
@@ -47,7 +48,8 @@ def get_geofence_coordinates():
         print(f"Number of processed geofence coordinates: {len(geofence_coordinates)}")
         print("Geofence coordinates fetched successfully.")
     except Exception as e:
-        print(f"Failed to fetch geofence coordinates: {e}")
+            print(f"Failed to fetch geofence coordinates: {e.__class__.__name__}: {e}")
+            
 
 # Fetch the geofence point coordinates once at startup
 get_geofence_coordinates()
@@ -81,13 +83,19 @@ def submit_mobile_node_location_ref():
         }), 400
     
     # Extract the user's values from the data
-    encrypted_values = extract_encrypted_location_ref(data, public_key)
+    try:
+        encrypted_values = extract_encrypted_location_ref(data, public_key)
+    except ValueError as e:
+        return jsonify({
+            "status": "error", 
+            "message": str(e)
+        }), 400
 
     # Calculate intermediate values for key authority to decrypt
     intermediate_values = calculate_intermediate_haversine_value_ref(*encrypted_values)
 
     # Submit intermediate values to key authority
-    submit_ref_geofence_results_to_key_authority(public_key_n_current, intermediate_values)
+    submit_geofence_results_to_key_authority(public_key_n_current, intermediate_values, "submit-geofence-result-ref")
 
     # Return a success response
     return jsonify({
@@ -125,13 +133,19 @@ def submit_mobile_node_location_prop():
         }), 400
     
     # Extract the user's values from the data
-    encrypted_values = extract_encrypted_location_prop(data, public_key)
+    try:
+        encrypted_values = extract_encrypted_location_prop(data, public_key)
+    except ValueError as e:
+        return jsonify({
+            "status": "error", 
+            "message": str(e)
+        }), 400
 
     # Calculate intermediate values for key authority to decrypt
     intermediate_values = calculate_intermediate_haversine_value_prop(*encrypted_values)
 
     # Submit intermediate values to key authority
-    submit_prop_geofence_results_to_key_authority(public_key_n_current, intermediate_values)
+    submit_geofence_results_to_key_authority(public_key_n_current, intermediate_values, "submit-geofence-result-prop")
 
     # Return a success response
     return jsonify({
@@ -168,10 +182,7 @@ def extract_encrypted_location_ref(data, public_key):
     missing_keys = [key for key in required_keys if key not in data['user_encrypted_location']]
     
     if missing_keys:
-        return jsonify({
-            "status": "error",
-            "message": f"Missing required keys in 'user_encrypted_location': {', '.join(missing_keys)}"
-        }), 400
+        raise ValueError(f"Missing required keys in 'user_encrypted_location': {', '.join(missing_keys)}")
     
     # Extract and deserialize data
     user_location_data = data['user_encrypted_location']
@@ -207,10 +218,7 @@ def extract_encrypted_location_prop(data, public_key):
     missing_keys = [key for key in required_keys if key not in data['user_encrypted_location']]
     
     if missing_keys:
-        return jsonify({
-            "status": "error",
-            "message": f"Missing required keys in 'user_encrypted_location': {', '.join(missing_keys)}"
-        }), 400
+        raise ValueError(f"Missing required keys in 'user_encrypted_location': {', '.join(missing_keys)}")
     
     # Extract and deserialize data
     user_location_data = data['user_encrypted_location']
@@ -305,51 +313,27 @@ def calculate_intermediate_haversine_value_prop(c1, c2, c3):
     return serialized_values
 
 
-def submit_ref_geofence_results_to_key_authority(public_key_n, intermediate_values):
+def submit_geofence_results_to_key_authority(public_key_n, intermediate_values, endpoint):
     try:
         payload = {
-            "public_key_n": public_key_n,
+            "public_key_n": public_key_n, 
             "encrypted_results": intermediate_values
         }
         
         # Make the POST request
         response = requests.post(
-            'http://keyauthority:5002/submit-geofence-result-ref',
+            f"http://keyauthority:5002/{endpoint}",
             json=payload
-        )        
-        
+        )
+
         response.raise_for_status()
 
         return response.json()
-
+    
     except requests.exceptions.RequestException as e:
         # Catch HTTP errors (from raise_for_status) and other request-related issues
         print(f"Failed to post results to key authority: {e}")
         return None
-
-   
-def submit_prop_geofence_results_to_key_authority(public_key_n, intermediate_values):
-    try:
-        payload = {
-            "public_key_n": public_key_n,
-            "encrypted_results": intermediate_values
-        }
-        
-        # Make the POST request
-        response = requests.post(
-            'http://keyauthority:5002/submit-geofence-result-prop',
-            json=payload
-        )        
-        
-        response.raise_for_status()
-
-        return response.json()
-
-    except requests.exceptions.RequestException as e:
-        # Catch HTTP errors (from raise_for_status) and other request-related issues
-        print(f"Failed to post results to key authority: {e}")
-        return None
-
 
 if __name__ == '__main__':
     app.run(debug=True, host="0.0.0.0", port=5001) 

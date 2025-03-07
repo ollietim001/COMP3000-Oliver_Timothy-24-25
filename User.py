@@ -243,7 +243,7 @@ def main():
     public_key = get_key_authority_public_key()
 
     # User's location in radians
-    user_latitude, user_longitude = math.radians(round(50.73341, 5)), math.radians(round(-3.48111, 5))
+    user_latitude, user_longitude = math.radians(round(51.573037, 5)), math.radians(round(-9.724087, 5))
 
     # Precompute terms for use in haversine calculation
     user_location_terms = compute_and_encrypt_user_location_terms_ref(user_latitude, user_longitude, public_key)
