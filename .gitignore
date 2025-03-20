@@ -1,8 +1,12 @@
 Geofencing-Microservice/geofencing-venv/
+Geofencing-Microservice/.pytest_cache/
 Geofencing-Microservice/src/__pycache__/
+Geofencing-Microservice/tests/__pycache__/
 
-KeyAuthority-Microservice/keyAuthority-venv/
-KeyAuthority-Microservice/.pytest_cache/
-KeyAuthority-Microservice/src/__pycache__/
-KeyAuthority-Microservice/tests/__pycache__/
+Carer-Device/carerDevice-venv/
+Carer-Device/.pytest_cache/
+Carer-Device/src/__pycache__/
+Carer-Device/tests/__pycache__/
 
+Outputs
+__pycache__

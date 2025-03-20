@@ -14,13 +14,14 @@ geofence_coordinates = []
 def get_geofence_coordinates():
     global geofence_coordinates  # Store globally
     # Initialize Overpass API
-    api = overpass.API(timeout=60000)  # 60s timeout (If timeout error occurs: Increase for runtime testing; otherwise, reduce 'out qt 10000 to 100' reducing number of geofences fetched)
+    api = overpass.API(timeout=60000)  # 60s timeout (If timeout error occurs: Increase timeout or reduce 'out qt' to a lower number reducing number of geofences fetched 
 
     # Define the Overpass query for cafes, to get a single lat/lon for each feature
     # Select individual point locations (nodes)
+    # If changing this check docker logs to make sure is "Number of processed geofence coordinates:" matches numGeofenceBoundaries
     query = """
     node["amenity"="cafe"](50.0,-10.0,60.0,2.0);
-    out qt 10000;
+    out qt 1000;
     """
 
     try:
@@ -28,22 +29,19 @@ def get_geofence_coordinates():
         num_coordinates = len(result['features'])
         print(f"Total lon-lat pairs: {num_coordinates}")
 
-        count = 0                   
-        numGeofenceBoundaries = 10  # No. of geofence boundaries (Change this if you want more geofences, note this must not exceed 'out qt' value)
+        numGeofenceBoundaries = 500  # No. of geofence boundaries (Change this if you want more geofences, note this must not exceed 'out qt' value)
 
         # Raise an exception if there are fewer coordinates than required geofence boundaries
         if num_coordinates < numGeofenceBoundaries:
             raise ValueError(f"Insufficient coordinates: Found {num_coordinates}, but need at least {numGeofenceBoundaries}")
-
+        
         # Extract lat and lon values, round to 5 dp, convert to radians
-        for feature in result['features']:
-            if count >= numGeofenceBoundaries:                          # Limit to 'n' Cafes
-                break
+        for i in range(numGeofenceBoundaries):  # Limit to 'n' Cafes
+            feature = result['features'][i]
             lon, lat = feature['geometry']['coordinates']
             lon_rounded, lat_rounded = round(lon, 6), round(lat, 6)                             
             print(f"longitude: {lon_rounded}, latitude: {lat_rounded}") # Print geofences coordinates for testing
             geofence_coordinates.append([math.radians(lon_rounded), math.radians(lat_rounded)])
-            count += 1
         
         print(f"Number of processed geofence coordinates: {len(geofence_coordinates)}")
         print("Geofence coordinates fetched successfully.")
@@ -54,8 +52,8 @@ def get_geofence_coordinates():
 # Fetch the geofence point coordinates once at startup
 get_geofence_coordinates()
 
-@app.route("/submit-mobile-node-location-ref", methods=['POST'])
-def submit_mobile_node_location_ref():
+@app.route("/submit-user-location-ref", methods=['POST'])
+def submit_user_location_ref():
     # Retrieve JSON payload
     data = request.get_json()
     
@@ -72,7 +70,7 @@ def submit_mobile_node_location_ref():
             "message": "Missing 'user_encrypted_location' or 'public_key_n' in request data"
         }), 400
     
-    public_key_n_current = get_key_authority_public_key()
+    public_key_n_current = get_carer_public_key()
     public_key = paillier.PaillierPublicKey(public_key_n_current)
 
     # Verify the provided public key matches the server's public key
@@ -90,12 +88,17 @@ def submit_mobile_node_location_ref():
             "status": "error", 
             "message": str(e)
         }), 400
+    
+    request_size = len(request.data)
+    # Write Recieved Communication KB Reference to file
+    with open("commGeoOutRef.txt", "a") as f:
+        f.write(f"{request_size/1024}\n")
 
-    # Calculate intermediate values for key authority to decrypt
-    intermediate_values = calculate_intermediate_haversine_value_ref(*encrypted_values)
+    # Calculate intermediate values for carer to decrypt
+    intermediate_values = calculate_intermediate_haversine_value_ref(*encrypted_values, data['number_of_geofences'])
 
-    # Submit intermediate values to key authority
-    submit_geofence_results_to_key_authority(public_key_n_current, intermediate_values, "submit-geofence-result-ref")
+    # Submit intermediate values to carer
+    submit_geofence_results_to_carer(public_key_n_current, intermediate_values, "submit-geofence-result-ref")
 
     # Return a success response
     return jsonify({
@@ -104,8 +107,8 @@ def submit_mobile_node_location_ref():
     }), 200
 
 
-@app.route("/submit-mobile-node-location-prop", methods=['POST'])
-def submit_mobile_node_location_prop():
+@app.route("/submit-user-location-prop", methods=['POST'])
+def submit_user_location_prop():
     # Retrieve JSON payload
     data = request.get_json()
     
@@ -122,10 +125,10 @@ def submit_mobile_node_location_prop():
             "message": "Missing 'user_encrypted_location' or 'public_key_n' in request data"
         }), 400
     
-    public_key_n_current = get_key_authority_public_key()
+    public_key_n_current = get_carer_public_key()
     public_key = paillier.PaillierPublicKey(public_key_n_current)
 
-    # Verify the provided public key matches the server's public key
+    # Verify the provided public key matches the carer's public key
     if data['public_key_n'] != public_key_n_current:
         return jsonify({
             "status": "error",
@@ -140,12 +143,17 @@ def submit_mobile_node_location_prop():
             "status": "error", 
             "message": str(e)
         }), 400
+    
+    request_size = len(request.data)
+    # Write Recieved Communication KB Proposed to file
+    with open("commGeoOutProp.txt", "a") as f:
+        f.write(f"{request_size/1024}\n")
 
-    # Calculate intermediate values for key authority to decrypt
-    intermediate_values = calculate_intermediate_haversine_value_prop(*encrypted_values)
+    # Calculate intermediate values for carer to decrypt
+    intermediate_values = calculate_intermediate_haversine_value_prop(*encrypted_values, data['number_of_geofences'])
 
     # Submit intermediate values to key authority
-    submit_geofence_results_to_key_authority(public_key_n_current, intermediate_values, "submit-geofence-result-prop")
+    submit_geofence_results_to_carer(public_key_n_current, intermediate_values, "submit-geofence-result-prop")
 
     # Return a success response
     return jsonify({
@@ -153,9 +161,9 @@ def submit_mobile_node_location_prop():
         "message": "Location data recieved"
     }), 200
     
-def get_key_authority_public_key():
+def get_carer_public_key():
     try:
-        response = requests.get('http://keyauthority:5002/get-public-key')
+        response = requests.get('http://carer:5002/get-public-key')
         response.raise_for_status()
 
         data = response.json()
@@ -237,14 +245,14 @@ def extract_encrypted_location_prop(data, public_key):
 
 def calculate_intermediate_haversine_value_ref(
         alpha_sq, gamma_sq, alpha_gamma_product_A, 
-        zeta_theta_sq_product_A, zeta_theta_mu_product_A, zeta_mu_sq_product_A
-        ):
+        zeta_theta_sq_product_A, zeta_theta_mu_product_A, zeta_mu_sq_product_A,
+        number_of_geofences):
     
     start = time.time()
 
     haversine_intermediate_values = []
 
-    for center_longitude, center_latitude in geofence_coordinates: 
+    for center_longitude, center_latitude in geofence_coordinates[:number_of_geofences]: 
         # Terms derived from Center point (original, squared, and combined where applicable)
         beta = math.sin(center_latitude / 2)
         beta_sq = beta**2
@@ -276,6 +284,10 @@ def calculate_intermediate_haversine_value_ref(
 
     print("(Runtime Performance Experiment) Computation Runtime Reference:", round((end-start), 3), "s")
 
+    # Write Computation Runtime Reference to file
+    with open("runCompOutRef.txt", "a") as f:
+        f.write(f"{(end-start)}\n")
+
     # Serialize results after timing ends
     serialized_values = []
     for intermediate_value in haversine_intermediate_values:
@@ -286,13 +298,13 @@ def calculate_intermediate_haversine_value_ref(
     return serialized_values
 
 
-def calculate_intermediate_haversine_value_prop(c1, c2, c3):
+def calculate_intermediate_haversine_value_prop(c1, c2, c3, number_of_geofences):
     
     start = time.time()
 
     haversine_intermediate_values = []
 
-    for center_longitude, center_latitude in geofence_coordinates: 
+    for center_longitude, center_latitude in geofence_coordinates[:number_of_geofences]: 
         # Compute haversine intermediate value
         
         haversine_intermediate = 1 - c1 * math.sin(center_latitude) - c2 * math.cos(center_latitude) * math.cos(center_longitude) - c3 * math.cos(center_latitude) * math.sin(center_longitude)
@@ -303,6 +315,10 @@ def calculate_intermediate_haversine_value_prop(c1, c2, c3):
 
     print("(Runtime Performance Experiment) Computation Runtime Proposed:", round((end-start), 3), "s")
 
+    # Write Computation Runtime Proposed to file
+    with open("runCompOutProp.txt", "a") as f:
+        f.write(f"{(end-start)}\n")
+
     # Serialize results after timing ends
     serialized_values = []
     for intermediate_value in haversine_intermediate_values:
@@ -313,7 +329,7 @@ def calculate_intermediate_haversine_value_prop(c1, c2, c3):
     return serialized_values
 
 
-def submit_geofence_results_to_key_authority(public_key_n, intermediate_values, endpoint):
+def submit_geofence_results_to_carer(public_key_n, intermediate_values, endpoint):
     try:
         payload = {
             "public_key_n": public_key_n, 
@@ -322,7 +338,7 @@ def submit_geofence_results_to_key_authority(public_key_n, intermediate_values, 
         
         # Make the POST request
         response = requests.post(
-            f"http://keyauthority:5002/{endpoint}",
+            f"http://carer:5002/{endpoint}",
             json=payload
         )
 

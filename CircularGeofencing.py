@@ -3,6 +3,7 @@ import math
 import time
 import random
 import matplotlib.pyplot as plt
+import stats
 from tabulate import tabulate
 
 
@@ -185,13 +186,24 @@ def prop_evaluate_geofence_encrypted(encrypted_result, radius, earth_radius, pri
 # End of Proposed encrypted haversine system
 
 
-def security_overhead_exeperiment(user_latitude, user_longitude, center_latitude, center_longitude, radius, earth_radius, public_key, private_key):
+def security_overhead_exeperiment(user_latitude, user_longitude, center_latitude, center_longitude, radius, earth_radius, public_key, private_key, num_repitions_mean):
+
+    tableResults = []
     encryption_counts = [10, 50, 100]
-    runtime_results = []
-    
+
+    # Run different test cases
     for num_encryptions in encryption_counts:
+
+        # Output files with temporary data
+        files = ["Outputs/securityRunOutRef.txt", "Outputs/securityRunOutProp.txt", "Outputs/securityOverOutRef.txt", "Outputs/securityOverOutProp.txt"]
+
+        # Clear output files of temporary data
+        for file_name in files:
+            with open(file_name, 'w'):
+                pass
+
         runtimes = []
-        for j in range(10000):  # Repeat for average runtime, as rapid execution may yield a result of 0 seconds
+        for j in range(10000):  # Repeat baseline for average runtime, as rapid execution may yield a result of 0 seconds
             start = time.time()
             for i in range(num_encryptions):
                 # Check if inside geofence
@@ -201,50 +213,78 @@ def security_overhead_exeperiment(user_latitude, user_longitude, center_latitude
             runtime = (end-start)
             runtimes.append(runtime)
 
-        average_runtime = sum(runtimes) / len(runtimes)
+        average_runtime = sum(runtimes) / len(runtimes) # Average runtime for haversine formula (baseline)
 
-        start_encrypted_system_ref = time.time()
+        # Repeat for average
+        for i in range(num_repitions_mean):
+            start_encrypted_system_ref = time.time()
 
-        for i in range(num_encryptions):
-            # Encrypt user terms
-            user_precomputed_ref = ref_precompute_user_terms(user_latitude, user_longitude, public_key)
+            for i in range(num_encryptions):
+                # Encrypt user terms
+                user_precomputed_ref = ref_precompute_user_terms(user_latitude, user_longitude, public_key)
 
-            # Calculate haversine intermediate value
-            encrypted_result_ref = ref_calculate_intermediate_haversine_value(user_precomputed_ref, center_latitude, center_longitude)
+                # Calculate haversine intermediate value
+                encrypted_result_ref = ref_calculate_intermediate_haversine_value(user_precomputed_ref, center_latitude, center_longitude)
 
-            # Check if inside geofence
-            ref_evaluate_geofence_encrypted(encrypted_result_ref, radius, earth_radius, private_key)
+                # Check if inside geofence
+                ref_evaluate_geofence_encrypted(encrypted_result_ref, radius, earth_radius, private_key)
 
-        end_encrypted_system_ref = time.time()
+            end_encrypted_system_ref = time.time()
 
-        runtime_encrypted_system_ref = (end_encrypted_system_ref - start_encrypted_system_ref)
+            runtime_encrypted_system_ref = (end_encrypted_system_ref - start_encrypted_system_ref)
 
-        start_encrypted_system_prop = time.time()
+            start_encrypted_system_prop = time.time()
 
-        for i in range(num_encryptions):
-            # Encrypt user terms
-            user_precomputed_prop = prop_precompute_user_terms(user_latitude, user_longitude, public_key)
+            for i in range(num_encryptions):
+                # Encrypt user terms
+                user_precomputed_prop = prop_precompute_user_terms(user_latitude, user_longitude, public_key)
 
-            # Calculate haversine intermediate value
-            encrypted_result_prop = prop_calculate_intermediate_haversine_value(user_precomputed_prop, center_latitude, center_longitude)
+                # Calculate haversine intermediate value
+                encrypted_result_prop = prop_calculate_intermediate_haversine_value(user_precomputed_prop, center_latitude, center_longitude)
 
-            # Check if inside geofence
-            prop_evaluate_geofence_encrypted(encrypted_result_prop, radius, earth_radius, private_key)
-        
-        end_encrypted_system_prop = time.time()
+                # Check if inside geofence
+                prop_evaluate_geofence_encrypted(encrypted_result_prop, radius, earth_radius, private_key)
+            
+            end_encrypted_system_prop = time.time()
 
-        runtime_encrypted_system_prop = (end_encrypted_system_prop - start_encrypted_system_prop)
+            runtime_encrypted_system_prop = (end_encrypted_system_prop - start_encrypted_system_prop)
 
-        overhead = ((runtime_encrypted_system_ref - average_runtime) / average_runtime) * 100
-        overhead_prop = ((runtime_encrypted_system_prop - average_runtime) / average_runtime) * 100
+            overhead = ((runtime_encrypted_system_ref - average_runtime) / average_runtime) * 100
+            overhead_prop = ((runtime_encrypted_system_prop - average_runtime) / average_runtime) * 100
 
-        runtime_results.append((num_encryptions, average_runtime, runtime_encrypted_system_ref, overhead, runtime_encrypted_system_prop, overhead_prop))
+            # Write Total Runtime Reference to file
+            with open("Outputs/securityRunOutRef.txt", "a") as f:
+                f.write(f"{(runtime_encrypted_system_ref)}\n")
 
+            # Write Total Runtime Proposed to file
+            with open("Outputs/securityRunOutProp.txt", "a") as f:
+                f.write(f"{(runtime_encrypted_system_prop)}\n")
+
+            # Write Security Overhead Reference to file
+            with open("Outputs/securityOverOutRef.txt", "a") as f:
+                f.write(f"{(overhead)}\n")
+
+            # Write Security Overhead Proposed to file
+            with open("Outputs/securityOverOutProp.txt", "a") as f:
+                f.write(f"{(overhead_prop)}\n")
+
+        # Calculate staistics and present in table
+        security_stats = stats.main(files)
+
+        tableResults.append(
+            [num_encryptions, f"{average_runtime:.3e}", "Runtime (s)", 
+            f"{round(security_stats[0]['Mean'], 3)} ± {round(security_stats[0]['Standard Deviation'], 3)} (95% CI: {round(security_stats[0]['95% Confidence Interval'][0], 3)}, {round(security_stats[0]['95% Confidence Interval'][1], 3)})", 
+            f"{round(security_stats[1]['Mean'], 3)} ± {round(security_stats[1]['Standard Deviation'], 3)} (95% CI: {round(security_stats[1]['95% Confidence Interval'][0], 3)}, {round(security_stats[1]['95% Confidence Interval'][1], 3)})"]
+        )
+
+        tableResults.append(            
+            ["", "", "Overhead (%)", 
+            f"{security_stats[2]['Mean']:.3e} ± {security_stats[2]['Standard Deviation']:.3e} (95% CI: {security_stats[2]['95% Confidence Interval'][0]:.3e}, {security_stats[2]['95% Confidence Interval'][1]:.3e})", 
+            f"{security_stats[3]['Mean']:.3e} ± {security_stats[3]['Standard Deviation']:.3e} (95% CI: {security_stats[3]['95% Confidence Interval'][0]:.3e}, {security_stats[3]['95% Confidence Interval'][1]:.3e})"]
+        )
     
-    head = ["Number of Encryptions", "Baseline Runtime (s)", "Reference encrypted Runtime (s)", "Reference overhead (%)", 
-            "Proposed encrypted Runtime (s)", "Proposed overhead (%)"]
-    
-    print(tabulate(runtime_results, headers=head, tablefmt="grid"))
+    head = ["Enc.", "Baseline (s)", "Metric", "Ref. Alg.", "Prop. Alg."]
+    print(tabulate(tableResults, headers=head, tablefmt="grid"))
 
 
 def accuracy_experiment(center_latitude, center_longitude, radius, earth_radius, user_points, public_key, private_key):
@@ -327,18 +367,18 @@ def main():
     # Geofence center in radians
     center_latitude, center_longitude = math.radians(round(51.651051, 6)), math.radians(round(-9.910685, 6))
 
-    # Quantify the additional runtime and resource overhead introduced by encryption 
-    security_overhead_exeperiment(user_latitude, user_longitude, center_latitude, center_longitude, radius, earth_radius, public_key, private_key)
+    # Quantify the additional runtime and resource overhead introduced by encryption
+    security_overhead_exeperiment(user_latitude, user_longitude, center_latitude, center_longitude, radius, earth_radius, public_key, private_key, num_repitions_mean=30)
 
-    # Generate user points inside, outside and on edge of the geofence
+    # # Generate user points inside, outside and on edge of the geofence
     points_inside, points_outside, points_edge = generate_user_points(center_latitude, center_longitude, radius, earth_radius)
     user_points = points_inside + points_outside + points_edge
 
-    # Evaluate the correctness of the geofencing system in determining whether a point is inside or outside the geofence
+    # # Evaluate the correctness of the geofencing system in determining whether a point is inside or outside the geofence
     accuracy_experiment(center_latitude, center_longitude, radius, earth_radius, user_points, public_key, private_key)
 
-    # Plot points for visualisation
-    plot_geofence(center_latitude, center_longitude, radius, earth_radius, points_inside, points_outside, points_edge)
+    # # Plot points for visualisation
+    # plot_geofence(center_latitude, center_longitude, radius, earth_radius, points_inside, points_outside, points_edge)
 
 
 

@@ -29,7 +29,7 @@ def submit_geofence_result():
             "message": "Missing 'encrypted_results' or 'public_key_n' in request data"
         }), 400
 
-    # Verify the provided public key matches the server's public key
+    # Verify the provided public key matches the carer's public key
     if data['public_key_n'] != public_key.n:
         return jsonify({
             "status": "error",
@@ -43,6 +43,11 @@ def submit_geofence_result():
             "status": "error",
             "message": "Invalid encrypted results"
         }), 400
+    
+    request_size = len(request.data)
+    # Write Recieved Communication KB Reference to file
+    with open("commCarerOutRef.txt", "a") as f:
+        f.write(f"{request_size/1024}\n")
 
     start = time.time()
 
@@ -54,16 +59,20 @@ def submit_geofence_result():
             "message": "Couldn't decrypt encrypted results",
         }), 500
     
-    # Determine if Mobile Node is inside or outside the geofence based on the results
+    # Determine if user is inside or outside the geofence based on the results
     results = evaluate_geofence_result(haversine_intermediate_values)
 
     end = time.time()
     print("(Runtime Performance Experiment) Decryption & Evaluation Runtime Reference:", round((end-start), 3), "s")
 
+    # Write Decryption Runtime Reference to file
+    with open("runDecOutRef.txt", "a") as f:
+        f.write(f"{(end-start)}\n")
+
     if 1 in results:
-        print("Mobile Node is inside the geofence.")
+        print("User is inside the geofence.")
     elif 0 in results and 1 not in results:
-        print("Mobile Node is outside the geofence.")
+        print("User is outside the geofence.")
     else:
         print("Evaluation failed.")
         return jsonify({
@@ -91,7 +100,7 @@ def submit_geofence_result_prop():
             "message": "Missing 'encrypted_results' or 'public_key_n' in request data"
         }), 400
 
-    # Verify the provided public key matches the server's public key
+    # Verify the provided public key matches the carer's public key
     if data['public_key_n'] != public_key.n:
         return jsonify({
             "status": "error",
@@ -106,6 +115,11 @@ def submit_geofence_result_prop():
             "message": "Invalid encrypted results"
         }), 400
     
+    request_size = len(request.data)
+    # Write Recieved Communication KB Proposed to file
+    with open("commCarerOutProp.txt", "a") as f:
+        f.write(f"{request_size/1024}\n")
+    
     start_prop = time.time()
 
     haversine_intermediate_values = decrypt_encrypted_results(encrypted_result_list, private_key)
@@ -116,16 +130,20 @@ def submit_geofence_result_prop():
             "message": "Couldn't decrypt encrypted results",
         }), 500
 
-    # Determine if Mobile Node is inside or outside the geofence based on the results
+    # Determine if User is inside or outside the geofence based on the results
     results = evaluate_geofence_result_prop(haversine_intermediate_values)
 
     end_prop = time.time()
     print("(Runtime Performance Experiment) Decryption & Evaluation Runtime Proposed:", round((end_prop-start_prop), 3), "s")
 
+    # Write Decryption Runtime Proposed to file
+    with open("runDecOutProp.txt", "a") as f:
+        f.write(f"{(end_prop-start_prop)}\n")
+
     if 1 in results:
-        print("Mobile Node is inside the geofence.")
+        print("User is inside the geofence.")
     elif 0 in results and 1 not in results:
-        print("Mobile Node is outside the geofence.")
+        print("User is outside the geofence.")
     else:
         print("Evaluation failed.")
         return jsonify({
