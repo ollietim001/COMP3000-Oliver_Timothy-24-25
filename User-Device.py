@@ -421,13 +421,13 @@ def main():
     user_location_terms_prop = compute_and_encrypt_user_location_terms_prop(user_latitude, user_longitude, public_key)
 
     # Send location data to geofencing service (Uncomment these lines and comment experiments to run without thorough testing)
-    # send_encrypted_location_to_geofencing_service_ref(*user_location_terms)
-    # send_encrypted_location_to_geofencing_service_prop(*user_location_terms_prop)
+    send_encrypted_location_to_geofencing_service_ref(*user_location_terms)
+    send_encrypted_location_to_geofencing_service_prop(*user_location_terms_prop)
 
     # Includes communication overhead test
     # runtime_experiment(user_latitude, user_longitude, public_key, num_repitions_mean=30)
 
-    scalability_experiment(user_location_terms, user_location_terms_prop, num_repitions_mean=30)
+    # scalability_experiment(user_location_terms, user_location_terms_prop, num_repitions_mean=30)
 
 
 if __name__ == "__main__":
