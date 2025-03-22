@@ -355,6 +355,16 @@ def plot_geofence(center_latitude, center_longitude, radius, earth_radius, point
     plt.grid()
     plt.show()
 
+def sanitise_geofence_center(center_latitude, center_longitude):
+    # Convert to string to check the last decimal digit
+    lon_str = f"{center_longitude:.{6}f}"
+    lat_str = f"{center_latitude:.{6}f}"
+    if lon_str[-1] == "0" and lat_str[-1] == "0":
+    # Add a tiny offset to lat_rounded to make last digit a '1' 
+        center_latitude += 10**-6  # 0.000001
+        center_latitude = round(center_latitude, 6)  # Round again just in case
+
+    return center_latitude, center_longitude
 
 def main():
     # Parameters
@@ -364,15 +374,20 @@ def main():
 
     # User's location in radians
     user_latitude, user_longitude = math.radians(round(51.573037, 5)), math.radians(round(-9.724087, 5))
+
+    # Sanitise geofence centre to prevent math domain errors
+    center_latitude, center_longitude = sanitise_geofence_center(
+        round(51.651050, 6), round(-9.910680, 6)
+    )
     # Geofence center in radians
-    center_latitude, center_longitude = math.radians(round(51.651051, 6)), math.radians(round(-9.910685, 6))
+    center_latitude, center_longitude = math.radians(center_latitude), math.radians(center_longitude)
 
     # Quantify the additional runtime and resource overhead introduced by encryption
     security_overhead_exeperiment(user_latitude, user_longitude, center_latitude, center_longitude, radius, earth_radius, public_key, private_key, num_repitions_mean=30)
 
     # # Generate user points inside, outside and on edge of the geofence
     points_inside, points_outside, points_edge = generate_user_points(center_latitude, center_longitude, radius, earth_radius)
-    user_points = points_inside + points_outside + points_edge
+    user_points = points_inside + points_outside + points_edge + [((math.radians(round(51.651050, 5)), math.radians(round(-9.910680, 5))))] # Last point to test sanatising works
 
     # # Evaluate the correctness of the geofencing system in determining whether a point is inside or outside the geofence
     accuracy_experiment(center_latitude, center_longitude, radius, earth_radius, user_points, public_key, private_key)

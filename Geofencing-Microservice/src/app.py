@@ -39,7 +39,24 @@ def get_geofence_coordinates():
         for i in range(numGeofenceBoundaries):  # Limit to 'n' Cafes
             feature = result['features'][i]
             lon, lat = feature['geometry']['coordinates']
-            lon_rounded, lat_rounded = round(lon, 6), round(lat, 6)                             
+            lon_rounded, lat_rounded = round(lon, 6), round(lat, 6)
+
+            '''
+            To prevent floating-point equality after rounding (e.g., 28.523500 == 28.52350),
+            which cause math domain errors in encrypted trigonometric operations,
+            we add a small offset (1e-6) to the coordinate if both lon and lat end in zero.
+            This offset shifts the coordinate by ~11.1 cm — negligible for geofencing accuracy.
+            '''
+
+            # Convert to string to check the last decimal digit
+            lon_str = f"{lon_rounded:.{6}f}"
+            lat_str = f"{lat_rounded:.{6}f}"
+
+            if lon_str[-1] == "0" and lat_str[-1] == "0":
+            # Add a tiny offset to lat_rounded to make last digit a '1' 
+                lat_rounded += 10**-6  # 0.000001
+                lat_rounded = round(lat_rounded, 6)  # Round again just in case
+
             print(f"longitude: {lon_rounded}, latitude: {lat_rounded}") # Print geofences coordinates for testing
             geofence_coordinates.append([math.radians(lon_rounded), math.radians(lat_rounded)])
         
