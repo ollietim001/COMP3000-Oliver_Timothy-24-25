@@ -112,29 +112,53 @@ PrivGeo is a privacy-preserving geofencing system designed for patient tracking 
 
 4. **Run the System:**
 
-   - Open `User-Device.py`
-   - Ensure all experiment code in the `main` block is **commented out**
-   - Then run the script.
+   - Run `User-Device.py`
 
 ---
 
-## 🧪 Running Tests
+## 🧪 Running Experiments
 
-Tests should be run individually, depending on what you want to evaluate:
+Both `User-Device.py` and `CircularGeofencing.py` support command-line arguments for running different types of performance experiments.
 
-- **Runtime & Scalability:**  
-  Run from the `main` block in `User-Device.py`
+### ⚙️ General Usage
 
-- **Accuracy & Security Overhead:**  
-  Run from the `main` block in `CircularGeofencing.py`
+```
+python <script_name>.py --mode <experiment_type> [--repetitions N] [--geofence-count N]
+```
+
+- `--mode`: Type of experiment to run
+- `--repetitions`: Number of times to repeat the experiment for averaging (default: `30`)
+- `--geofence-count`: Only used in `basic` mode to set the number of geofences (default: `10`)
+
+### Available Modes
+
+| Script                  | Mode         | Description                                                                 |
+|-------------------------|--------------|-----------------------------------------------------------------------------|
+| `User-Device.py`        | `basic`      | No experiments — just sends encrypted location with given geofence count   |
+| `User-Device.py`        | `runtime`    | Measures system runtime incl. communication   |
+| `User-Device.py`        | `scalability`| Evaluates system scalability under varying concurrent request loads        |
+| `CircularGeofencing.py` | `accuracy`   | Evaluates correctness of geofence classification (inside/outside detection)|
+| `CircularGeofencing.py` | `security`   | Quantifies runtime overhead introduced by encryption                       |
+
+
+### Example Commands
+
+Run a basic encrypted location submission with 15 geofences:
+```
+python User-Device.py --mode basic --geofence-count 15
+```
+
+Run runtime performance test with fewer repetitions:
+```
+python User-Device.py --mode runtime --repetitions 5
+```
+
+Run the geofence accuracy test:
+```
+python CircularGeofencing.py --mode accuracy
+```
 
 > ⚠️ **Note:**  
-> All tests (except the accuracy test) may take several hours to complete due to a default repetition count of **30**.  
-> You can reduce this number within the scripts if you're constrained by time or running exploratory tests.
->
-> For example, in `User-Device.py`, the runtime experiment is called as:
-> ```python
-> runtime_experiment(user_latitude, user_longitude, public_key, num_repitions_mean=30)
-> ```
-> You can lower `num_repitions_mean` (e.g., to 5 or 10) to speed up test runs.
+> Experiments: `runtime`, `scalability`, and `security` can take several hours to complete due to a default repetition count of **30**. Lower `--repetitions` for faster exploratory runs.
+
 ---

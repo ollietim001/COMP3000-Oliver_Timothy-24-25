@@ -4,6 +4,7 @@ import time
 import random
 import matplotlib.pyplot as plt
 import stats
+import argparse
 from tabulate import tabulate
 
 
@@ -366,7 +367,33 @@ def sanitise_geofence_center(center_latitude, center_longitude):
 
     return center_latitude, center_longitude
 
+
+def parse_arguments():
+    parser = argparse.ArgumentParser(
+        description="Run experimental tests on geofencing system"
+    )
+
+    parser.add_argument(
+        "-m", "--mode",
+        choices=["security", "accuracy"],
+        default="accuracy",
+        help="Run mode: security overhead, accuracy"
+    )
+
+    parser.add_argument(
+        "-r", "--repetitions",
+        type=int,
+        default=30,
+        help="Number of repetitions for security overhead experiment to calculate mean"
+    )
+
+    return parser.parse_args()
+
+
 def main():
+
+    args = parse_arguments()
+
     # Parameters
     public_key, private_key = initialize_keys()
     radius = 1000           # radius in meters
@@ -382,18 +409,20 @@ def main():
     # Geofence center in radians
     center_latitude, center_longitude = math.radians(center_latitude), math.radians(center_longitude)
 
-    # Quantify the additional runtime and resource overhead introduced by encryption
-    security_overhead_exeperiment(user_latitude, user_longitude, center_latitude, center_longitude, radius, earth_radius, public_key, private_key, num_repitions_mean=30)
-
-    # # Generate user points inside, outside and on edge of the geofence
+    # Generate user points inside, outside and on edge of the geofence
     points_inside, points_outside, points_edge = generate_user_points(center_latitude, center_longitude, radius, earth_radius)
     user_points = points_inside + points_outside + points_edge + [((math.radians(round(51.651050, 5)), math.radians(round(-9.910680, 5))))] # Last point to test sanatising works
 
-    # # Evaluate the correctness of the geofencing system in determining whether a point is inside or outside the geofence
-    accuracy_experiment(center_latitude, center_longitude, radius, earth_radius, user_points, public_key, private_key)
+    # Handle selected mode
+    if args.mode == "security":
+        # Quantify the additional runtime overhead introduced by encryption
+        security_overhead_exeperiment(user_latitude, user_longitude, center_latitude, center_longitude, radius, earth_radius, public_key, private_key, num_repitions_mean=args.repitions)
 
-    # # Plot points for visualisation
-    # plot_geofence(center_latitude, center_longitude, radius, earth_radius, points_inside, points_outside, points_edge)
+    elif args.mode == "accuracy":
+        # Evaluate the correctness of the geofencing system in determining whether a point is inside or outside the geofence
+        accuracy_experiment(center_latitude, center_longitude, radius, earth_radius, user_points, public_key, private_key)
+        # Plot points for visualisation
+        # plot_geofence(center_latitude, center_longitude, radius, earth_radius, points_inside, points_outside, points_edge)
 
 
 

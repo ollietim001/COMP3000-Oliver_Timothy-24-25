@@ -5,6 +5,7 @@ import time
 import threading
 import stats
 import numpy as np
+import argparse
 from tabulate import tabulate
 
 
@@ -407,7 +408,38 @@ def runtime_experiment(user_latitude, user_longitude, public_key, num_repitions_
     head_comm = ["Geofences", "Metric", "Ref. Alg.", "Prop. Alg."]
     print(tabulate(commTableResults, headers=head_comm, tablefmt="grid"))
 
+def parse_arguments():
+    parser = argparse.ArgumentParser(
+        description="Run basic or experimental tests on geofencing system"
+    )
+
+    parser.add_argument(
+        "-m", "--mode",
+        choices=["basic", "runtime", "scalability"],
+        default="basic",
+        help="Run mode: basic (just send location), runtime (incl. communication overhead experiment), scalability"
+    )
+
+    parser.add_argument(
+        "-r", "--repetitions",
+        type=int,
+        default=30,
+        help="Number of repetitions for runtime/scalability experiments to calculate mean"
+    )
+
+    parser.add_argument(
+        "-gc", "--geofence-count",
+        type=int,
+        default=10,
+        help="Number of geofences to simulate (only used in basic mode)"
+    )
+
+    return parser.parse_args()
+
 def main():
+
+    args = parse_arguments()
+
     # Get public key from carer's device
     public_key = get_carer_public_key()
 
@@ -420,14 +452,18 @@ def main():
     # Proposed geofencing system
     user_location_terms_prop = compute_and_encrypt_user_location_terms_prop(user_latitude, user_longitude, public_key)
 
-    # Send location data to geofencing service (Uncomment these lines and comment experiments to run without thorough testing)
-    send_encrypted_location_to_geofencing_service_ref(*user_location_terms)
-    send_encrypted_location_to_geofencing_service_prop(*user_location_terms_prop)
+    # Handle selected mode
+    if args.mode == "basic":
+        send_encrypted_location_to_geofencing_service_ref(*user_location_terms, number_of_geofences=args.geofence_count)
+        send_encrypted_location_to_geofencing_service_prop(*user_location_terms_prop, number_of_geofences=args.geofence_count)
 
-    # Includes communication overhead test
-    # runtime_experiment(user_latitude, user_longitude, public_key, num_repitions_mean=30)
+    elif args.mode == "runtime":
+        # Measures the runtime performance of the systems (incl. communication overhead experiment)
+        runtime_experiment(user_latitude, user_longitude, public_key, num_repitions_mean=args.repetitions)
 
-    # scalability_experiment(user_location_terms, user_location_terms_prop, num_repitions_mean=30)
+    elif args.mode == "scalability":
+        # Evaluates the systems scalability under varying request loads
+        scalability_experiment(user_location_terms, user_location_terms_prop, num_repitions_mean=args.repetitions)
 
 
 if __name__ == "__main__":
