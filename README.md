@@ -130,6 +130,13 @@ python <script_name>.py --mode <experiment_type> [--repetitions N] [--geofence-c
 - `--repetitions`: Number of times to repeat the experiment for averaging (default: `30`)
 - `--geofence-count`: Only used in `basic` mode to set the number of geofences (default: `10`)
 
+> ⚠️ **Note:**  
+> Running with **fewer than 20 repetitions** may trigger:
+>```
+>RuntimeWarning: invalid value encountered in multiply
+>```
+>This occurs during confidence interval calculations due to insufficient data or zero variance. The script will still run, but results may be inaccurate. Recommended: Use ≥20 repetitions for reliable stats.
+
 ### Available Modes
 
 | Script                  | Mode         | Description                                                                 |

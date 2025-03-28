@@ -5,6 +5,7 @@ import time
 import threading
 import stats
 import numpy as np
+import pandas as pd
 import argparse
 from tabulate import tabulate
 
@@ -305,7 +306,10 @@ def scalability_experiment(user_location_terms_ref, user_location_terms_prop, nu
 
 
     head = ["Queries", "Metric", "Ref. Alg.", "Prop. Alg."]
-    print(tabulate(tableResults, headers=head, tablefmt="grid"))
+
+    save_results(tableResults, head, "Results/scalability.csv")
+
+    print(f"Scalability results saved to Results/scalability.csv\n")
 
     # # Print results Reference system
     # print(f"System runtime for {num_requests} requests excluding encryption runtime: {round(total_runtime_ref, 3)} s")
@@ -403,10 +407,19 @@ def runtime_experiment(user_latitude, user_longitude, public_key, num_repitions_
 
 
     head = ["Geofences", "Metric", "Ref. Alg.", "Prop. Alg."]
-    print(f'{tabulate(tableResults, headers=head, tablefmt="grid")}\n\n')
-
     head_comm = ["Geofences", "Metric", "Ref. Alg.", "Prop. Alg."]
-    print(tabulate(commTableResults, headers=head_comm, tablefmt="grid"))
+
+    save_results(tableResults, head, "Results/runtime_performance.csv")
+    save_results(commTableResults, head_comm, "Results/communication.csv")
+
+    print(f"Runtime performance results saved to Results/runtime_performance.csv\n")
+    print(f"Communication results saved to Results/communication.csv\n")
+
+
+def save_results(table_data, headers, filename):
+    df = pd.DataFrame(table_data, columns=headers)
+    df.to_csv(filename, index=False, encoding="utf-8-sig")
+
 
 def parse_arguments():
     parser = argparse.ArgumentParser(

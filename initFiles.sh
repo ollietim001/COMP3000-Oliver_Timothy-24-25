@@ -1,6 +1,7 @@
 #!/bin/bash
 
 mkdir -p Outputs # Creates Outputs directory
+mkdir -p Results # Creates Results directory
 
 # List of required files
 FILES=(

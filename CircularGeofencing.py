@@ -5,6 +5,7 @@ import random
 import matplotlib.pyplot as plt
 import stats
 import argparse
+import pandas as pd
 from tabulate import tabulate
 
 
@@ -285,7 +286,9 @@ def security_overhead_exeperiment(user_latitude, user_longitude, center_latitude
         )
     
     head = ["Enc.", "Baseline (s)", "Metric", "Ref. Alg.", "Prop. Alg."]
-    print(tabulate(tableResults, headers=head, tablefmt="grid"))
+    save_results(tableResults, head, "Results/security_overhead.csv")
+
+    print(f"Security overhead results saved to Results/security_overhead.csv\n")
 
 
 def accuracy_experiment(center_latitude, center_longitude, radius, earth_radius, user_points, public_key, private_key):
@@ -314,7 +317,9 @@ def accuracy_experiment(center_latitude, center_longitude, radius, earth_radius,
     head = ["Latitude", "Longitude", "Ground Truth", "Reference Result", "Reference Correct/Incorrect",
             "Proposed result", "Proposed Correct/Incorrect"]
     
-    print(tabulate(accuracy_results, headers=head, tablefmt="grid"))
+    save_results(accuracy_results, head, "Results/accuracy.csv")
+
+    print(f"Accuracy results saved to Results/accuracy.csv\n")
     
     correct_count_ref = sum(1 for test_point in accuracy_results if test_point[4] == "Correct")
     accuracy_ref = correct_count_ref / len(accuracy_results) * 100
@@ -366,6 +371,11 @@ def sanitise_geofence_center(center_latitude, center_longitude):
         center_latitude = round(center_latitude, 6)  # Round again just in case
 
     return center_latitude, center_longitude
+
+
+def save_results(table_data, headers, filename):
+    df = pd.DataFrame(table_data, columns=headers)
+    df.to_csv(filename, index=False, encoding="utf-8-sig")
 
 
 def parse_arguments():
