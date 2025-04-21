@@ -2,14 +2,13 @@ from phe import paillier
 import math
 import time
 import random
-import matplotlib.pyplot as plt
 import stats
 import argparse
 import pandas as pd
-from tabulate import tabulate
+import numpy as np
 
 
-def generate_user_points(center_latitude, center_longitude, radius, earth_radius, num_points=10):
+def generate_user_points(center_latitude, center_longitude, radius, earth_radius, num_points=30):
     points_inside = []
     points_outside = []
     points_edge = []
@@ -188,7 +187,7 @@ def prop_evaluate_geofence_encrypted(encrypted_result, radius, earth_radius, pri
 # End of Proposed encrypted haversine system
 
 
-def security_overhead_exeperiment(user_latitude, user_longitude, center_latitude, center_longitude, radius, earth_radius, public_key, private_key, num_repitions_mean):
+def security_overhead_exeperiment(user_latitude, user_longitude, center_latitude, center_longitude, radius, earth_radius, public_key, private_key, num_repetitions_mean):
 
     tableResults = []
     encryption_counts = [10, 50, 100]
@@ -218,7 +217,7 @@ def security_overhead_exeperiment(user_latitude, user_longitude, center_latitude
         average_runtime = sum(runtimes) / len(runtimes) # Average runtime for haversine formula (baseline)
 
         # Repeat for average
-        for i in range(num_repitions_mean):
+        for i in range(num_repetitions_mean):
             start_encrypted_system_ref = time.time()
 
             for i in range(num_encryptions):
@@ -291,75 +290,74 @@ def security_overhead_exeperiment(user_latitude, user_longitude, center_latitude
     print(f"Security overhead results saved to Results/security_overhead.csv\n")
 
 
-def accuracy_experiment(center_latitude, center_longitude, radius, earth_radius, user_points, public_key, private_key):
-    accuracy_results = []
-    for user_latitude, user_longitude in user_points:
-        # Establish ground truth
-        ground_truth = "Inside" if evaluate_geofence(user_latitude, user_longitude, center_latitude, center_longitude, radius, earth_radius) else "Outside"
+def accuracy_experiment(center_latitude, center_longitude, center_latitude_float, center_longitude_float, radius, earth_radius, public_key, private_key, num_repetitions_mean):
 
-        # Reference encrypted system
-        user_precomputed_ref = ref_precompute_user_terms(user_latitude, user_longitude, public_key)
-        encrypted_result_ref = ref_calculate_intermediate_haversine_value(user_precomputed_ref, center_latitude, center_longitude)
-        system_result_ref = "Inside" if ref_evaluate_geofence_encrypted(encrypted_result_ref, radius, earth_radius, private_key) else "Outside"
+    tableResults = []
 
-        # Proposed encrypted system
-        user_precomputed_prop = prop_precompute_user_terms(user_latitude, user_longitude, public_key)
-        encrypted_result_prop = prop_calculate_intermediate_haversine_value(user_precomputed_prop, center_latitude, center_longitude)
-        system_result_prop = "Inside" if prop_evaluate_geofence_encrypted(encrypted_result_prop, radius, earth_radius, private_key) else "Outside"
+    files = ["Outputs/accuracyRef.txt", "Outputs/accuracyProp.txt"]
+    # Clear output files of temporary data
+    for file_name in files:
+        with open(file_name, 'w'):
+            pass
 
-        # Check if both systems are correctly identifying if a point is inside/outside
-        final_result_ref = "Correct" if ground_truth == system_result_ref else "Incorrect"
-        final_result_prop = "Correct" if ground_truth == system_result_prop else "Incorrect"
+     # Repeat for average
+    for i in range(num_repetitions_mean):
+        # Generate user points inside, outside and on edge of the geofence
+        points_inside, points_outside, points_edge = generate_user_points(center_latitude, center_longitude, radius, earth_radius)
+        user_points = points_inside + points_outside + points_edge + [((math.radians(round(center_latitude_float, 5)), math.radians(round(center_longitude_float, 5))))] # Last point to test sanatising works (geofence centre point)
 
-        accuracy_results.append((user_latitude, user_longitude, ground_truth, system_result_ref, final_result_ref, 
-                                 system_result_prop, final_result_prop))
+        final_results_ref_for_rep = []
+        final_results_prop_for_rep = []
 
-    head = ["Latitude", "Longitude", "Ground Truth", "Reference Result", "Reference Correct/Incorrect",
-            "Proposed result", "Proposed Correct/Incorrect"]
-    
-    save_results(accuracy_results, head, "Results/accuracy.csv")
+        for user_latitude, user_longitude in user_points:
+            # Establish ground truth
+            ground_truth = "Inside" if evaluate_geofence(user_latitude, user_longitude, center_latitude, center_longitude, radius, earth_radius) else "Outside"
+
+            # Reference encrypted system
+            user_precomputed_ref = ref_precompute_user_terms(user_latitude, user_longitude, public_key)
+            encrypted_result_ref = ref_calculate_intermediate_haversine_value(user_precomputed_ref, center_latitude, center_longitude)
+            system_result_ref = "Inside" if ref_evaluate_geofence_encrypted(encrypted_result_ref, radius, earth_radius, private_key) else "Outside"
+
+            # Proposed encrypted system
+            user_precomputed_prop = prop_precompute_user_terms(user_latitude, user_longitude, public_key)
+            encrypted_result_prop = prop_calculate_intermediate_haversine_value(user_precomputed_prop, center_latitude, center_longitude)
+            system_result_prop = "Inside" if prop_evaluate_geofence_encrypted(encrypted_result_prop, radius, earth_radius, private_key) else "Outside"
+
+            # Check if both systems are correctly identifying if a point is inside/outside
+            final_result_ref = "Correct" if ground_truth == system_result_ref else "Incorrect"
+            final_result_prop = "Correct" if ground_truth == system_result_prop else "Incorrect"
+
+            final_results_ref_for_rep.append(final_result_ref)
+            final_results_prop_for_rep.append(final_result_prop)
+
+        correct_count_ref = final_results_ref_for_rep.count("Correct")
+        correct_count_prop = final_results_prop_for_rep.count("Correct")
+
+        accuracy_ref = correct_count_ref / len(final_results_ref_for_rep) * 100
+        accuracy_prop = correct_count_prop / len(final_results_prop_for_rep) * 100
+        
+        # Write Reference Accuracy Result to file
+        with open("Outputs/accuracyRef.txt", "a") as f:
+            f.write(f"{(accuracy_ref)}\n")
+
+        # Write Proposed Accuracy Result to file
+        with open("Outputs/accuracyProp.txt", "a") as f:
+            f.write(f"{(accuracy_prop)}\n")
+
+    # Calculate staistics and present in table
+    accuracy_stats = stats.main(files)
+
+    tableResults.append(
+        ["Accuracy %", 
+        f"{round(accuracy_stats[0]['Mean'], 3)} ± {round(accuracy_stats[0]['Standard Deviation'], 3)} (95% CI: {round(accuracy_stats[0]['95% Confidence Interval'][0], 3)}, {round(accuracy_stats[0]['95% Confidence Interval'][1], 3)})", 
+        f"{round(accuracy_stats[1]['Mean'], 3)} ± {round(accuracy_stats[1]['Standard Deviation'], 3)} (95% CI: {round(accuracy_stats[1]['95% Confidence Interval'][0], 3)}, {round(accuracy_stats[1]['95% Confidence Interval'][1], 3)})"]
+    )
+
+    head = ["Metric", "Ref. Alg.", "Prop. Alg."]
+    save_results(tableResults, head, "Results/accuracy.csv")
 
     print(f"Accuracy results saved to Results/accuracy.csv\n")
-    
-    correct_count_ref = sum(1 for test_point in accuracy_results if test_point[4] == "Correct")
-    accuracy_ref = correct_count_ref / len(accuracy_results) * 100
 
-    correct_count_prop = sum(1 for test_point in accuracy_results if test_point[6] == "Correct")
-    accuracy_prop = correct_count_prop / len(accuracy_results) * 100
-
-    print(f"Accuracy of Reference encrypted system: {accuracy_ref}")
-    print(f"Accuracy of Proposed encrypted system: {accuracy_prop}")
-
-
-def plot_geofence(center_latitude, center_longitude, radius, earth_radius, points_inside, points_outside, points_edge):
-    plt.figure(figsize=(8, 8))
-
-    points_geofence = []
-
-    # Generate circular geofence points
-    for theta in range(361):
-        theta_rad = math.radians(theta)
-        offset_lat = radius / earth_radius
-        offset_lon = offset_lat / math.cos(center_latitude)
-        lat = center_latitude + offset_lat * math.sin(theta_rad)
-        lon = center_longitude + offset_lon * math.cos(theta_rad)
-        points_geofence.append((lat, lon))
-
-    # Plot circular geofence
-    plt.plot(*zip(*[(math.degrees(lon), math.degrees(lat)) for lat, lon in points_geofence]), color="blue", label="Geofence Boundary")
-
-    # Plot user points
-    plt.scatter(*zip(*[(math.degrees(lon), math.degrees(lat)) for lat, lon in points_inside]), color="green", label="Inside Points")
-    plt.scatter(*zip(*[(math.degrees(lon), math.degrees(lat)) for lat, lon in points_outside]), color="red", label="Outside Points")
-    plt.scatter(*zip(*[(math.degrees(lon), math.degrees(lat)) for lat, lon in points_edge]), color="orange", label="Edge Points")
-
-    # Add labels and legend
-    plt.title("Geofence Visualisation")
-    plt.xlabel("Longitude")
-    plt.ylabel("Latitude")
-    plt.legend()
-    plt.grid()
-    plt.show()
 
 def sanitise_geofence_center(center_latitude, center_longitude):
     # Convert to string to check the last decimal digit
@@ -394,7 +392,7 @@ def parse_arguments():
         "-r", "--repetitions",
         type=int,
         default=30,
-        help="Number of repetitions for security overhead experiment to calculate mean"
+        help="Number of repetitions to calculate mean"
     )
 
     return parser.parse_args()
@@ -413,26 +411,20 @@ def main():
     user_latitude, user_longitude = math.radians(round(51.573037, 5)), math.radians(round(-9.724087, 5))
 
     # Sanitise geofence centre to prevent math domain errors
-    center_latitude, center_longitude = sanitise_geofence_center(
+    center_latitude_float, center_longitude_float = sanitise_geofence_center(
         round(51.651050, 6), round(-9.910680, 6)
     )
     # Geofence center in radians
-    center_latitude, center_longitude = math.radians(center_latitude), math.radians(center_longitude)
-
-    # Generate user points inside, outside and on edge of the geofence
-    points_inside, points_outside, points_edge = generate_user_points(center_latitude, center_longitude, radius, earth_radius)
-    user_points = points_inside + points_outside + points_edge + [((math.radians(round(51.651050, 5)), math.radians(round(-9.910680, 5))))] # Last point to test sanatising works
+    center_latitude, center_longitude = math.radians(center_latitude_float), math.radians(center_longitude_float)
 
     # Handle selected mode
     if args.mode == "security":
         # Quantify the additional runtime overhead introduced by encryption
-        security_overhead_exeperiment(user_latitude, user_longitude, center_latitude, center_longitude, radius, earth_radius, public_key, private_key, num_repitions_mean=args.repitions)
+        security_overhead_exeperiment(user_latitude, user_longitude, center_latitude, center_longitude, radius, earth_radius, public_key, private_key, num_repetitions_mean=args.repetitions)
 
     elif args.mode == "accuracy":
         # Evaluate the correctness of the geofencing system in determining whether a point is inside or outside the geofence
-        accuracy_experiment(center_latitude, center_longitude, radius, earth_radius, user_points, public_key, private_key)
-        # Plot points for visualisation
-        # plot_geofence(center_latitude, center_longitude, radius, earth_radius, points_inside, points_outside, points_edge)
+        accuracy_experiment(center_latitude, center_longitude, center_latitude_float, center_longitude_float, radius, earth_radius, public_key, private_key, num_repetitions_mean=args.repetitions)
 
 
 

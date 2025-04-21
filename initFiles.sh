@@ -27,6 +27,8 @@ FILES=(
     "securityRunOutProp.txt"
     "securityOverOutRef.txt"
     "securityOverOutProp.txt"
+    "accuracyRef.txt"
+    "accuracyProp.txt"
 )
 
 # Loop through and create files
