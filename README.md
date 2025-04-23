@@ -1,16 +1,5 @@
 # PrivGeo: Privacy-Preserving Geofencing using Paillier Encryption
 
-## 🔒 License
-
-This repository is shared publicly for academic review and transparency only.
-
-🚫 **No license has been granted. All rights reserved.**  
-Please do not reuse, modify, or publish any part of this code until the associated paper is formally published.
-
-If you are interested in using this work or collaborating, feel free to contact me.
-
----
-
 ## Project Owner
 **Oliver Timothy**
 
@@ -166,6 +155,6 @@ python CircularGeofencing.py --mode accuracy
 ```
 
 > ⚠️ **Note:**  
-> Experiments: `runtime`, `scalability`, and `security` can take several hours to complete due to a default repetition count of **30**. Lower `--repetitions` for faster exploratory runs.
+> Experiments: can take several hours to complete due to a default repetition count of **30**. Lower `--repetitions` for faster exploratory runs.
 
 ---
