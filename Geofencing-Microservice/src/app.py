@@ -324,7 +324,7 @@ def calculate_intermediate_haversine_value_prop(c1, c2, c3, number_of_geofences)
     for center_longitude, center_latitude in geofence_coordinates[:number_of_geofences]: 
         # Compute haversine intermediate value
         
-        haversine_intermediate = c1 * math.sin(center_latitude) - c2 * math.cos(center_latitude) * math.cos(center_longitude) - c3 * math.cos(center_latitude) * math.sin(center_longitude)
+        haversine_intermediate = 1 - c1 * math.sin(center_latitude) - c2 * math.cos(center_latitude) * math.cos(center_longitude) - c3 * math.cos(center_latitude) * math.sin(center_longitude)
 
         haversine_intermediate_values.append(haversine_intermediate)  # Store computation result
 

@@ -181,7 +181,7 @@ def evaluate_geofence_result_prop(haversine_intermediate_values):
     results = []
     for haversine_intermediate in haversine_intermediate_values:
         try:
-            distance = 2 * earth_radius * math.asin(math.sqrt(1- haversine_intermediate / 2))            
+            distance = 2 * earth_radius * math.asin(math.sqrt(haversine_intermediate / 2))            
             print(f"Distance from geofence centre: {round(distance, 2)} meters")
 
             # Return 1 if distance is within the radius, else 0

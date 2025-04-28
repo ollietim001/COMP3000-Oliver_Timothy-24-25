@@ -190,6 +190,8 @@ def prop_evaluate_geofence_encrypted(encrypted_result, radius, earth_radius, pri
 def security_overhead_exeperiment(user_latitude, user_longitude, center_latitude, center_longitude, radius, earth_radius, public_key, private_key, num_repetitions_mean):
 
     tableResults = []
+    all_raw_data_ref = []
+    all_raw_data_prop = []
     encryption_counts = [10, 50, 100]
 
     # Run different test cases
@@ -269,6 +271,17 @@ def security_overhead_exeperiment(user_latitude, user_longitude, center_latitude
             with open("Outputs/securityOverOutProp.txt", "a") as f:
                 f.write(f"{(overhead_prop)}\n")
 
+        # Load temporary security data
+        securityRunOutRef = np.loadtxt(files[0], dtype=float)
+        securityRunOutProp = np.loadtxt(files[1], dtype=float)
+        securityOverOutRef = np.loadtxt(files[2], dtype=float)
+        securityOverOutProp = np.loadtxt(files[3], dtype=float)
+
+        security_experiment_all_raw_data_ref = np.column_stack((np.full(len(securityRunOutRef), num_encryptions), np.full(len(securityRunOutRef), average_runtime), securityRunOutRef, securityOverOutRef))
+        security_experiment_all_raw_data_prop = np.column_stack((np.full(len(securityRunOutProp), num_encryptions), np.full(len(securityRunOutProp), average_runtime), securityRunOutProp, securityOverOutProp))
+        all_raw_data_ref.append(security_experiment_all_raw_data_ref)
+        all_raw_data_prop.append(security_experiment_all_raw_data_prop)
+
         # Calculate staistics and present in table
         security_stats = stats.main(files)
 
@@ -283,7 +296,24 @@ def security_overhead_exeperiment(user_latitude, user_longitude, center_latitude
             f"{security_stats[2]['Mean']:.3e} ± {security_stats[2]['Standard Deviation']:.3e} (95% CI: {security_stats[2]['95% Confidence Interval'][0]:.3e}, {security_stats[2]['95% Confidence Interval'][1]:.3e})", 
             f"{security_stats[3]['Mean']:.3e} ± {security_stats[3]['Standard Deviation']:.3e} (95% CI: {security_stats[3]['95% Confidence Interval'][0]:.3e}, {security_stats[3]['95% Confidence Interval'][1]:.3e})"]
         )
-    
+
+    # Saves all the raw security data
+    all_raw_data_ref = np.vstack(all_raw_data_ref)
+    all_raw_data_prop = np.vstack(all_raw_data_prop)
+    header = "# of Queries,Baseline,Total Runtime,Overhead"
+    np.savetxt(
+        'ExperimentsAllRawData/security_experiment_all_raw_data_ref.csv',
+        all_raw_data_ref, delimiter=',', 
+        header=header,
+        comments=''
+    )
+    np.savetxt(
+        'ExperimentsAllRawData/security_experiment_all_raw_data_prop.csv',
+        all_raw_data_prop, delimiter=',',
+        header=header,
+        comments=''
+    )
+
     head = ["Enc.", "Baseline (s)", "Metric", "Ref. Alg.", "Prop. Alg."]
     save_results(tableResults, head, "Results/security_overhead.csv")
 
@@ -293,6 +323,8 @@ def security_overhead_exeperiment(user_latitude, user_longitude, center_latitude
 def accuracy_experiment(center_latitude, center_longitude, center_latitude_float, center_longitude_float, radius, earth_radius, public_key, private_key, num_repetitions_mean):
 
     tableResults = []
+    all_raw_data_ref = []
+    all_raw_data_prop = []
 
     files = ["Outputs/accuracyRef.txt", "Outputs/accuracyProp.txt"]
     # Clear output files of temporary data
@@ -330,6 +362,24 @@ def accuracy_experiment(center_latitude, center_longitude, center_latitude_float
             final_results_ref_for_rep.append(final_result_ref)
             final_results_prop_for_rep.append(final_result_prop)
 
+            # Saves all raw data for accuracy
+            all_raw_data_ref.append([
+                i+1,
+                math.degrees(user_latitude),
+                math.degrees(user_longitude),
+                ground_truth,
+                system_result_ref,
+                final_result_ref
+            ])
+            all_raw_data_prop.append([
+                i+1,
+                math.degrees(user_latitude),
+                math.degrees(user_longitude),
+                ground_truth,
+                system_result_prop,
+                final_result_prop
+            ])
+
         correct_count_ref = final_results_ref_for_rep.count("Correct")
         correct_count_prop = final_results_prop_for_rep.count("Correct")
 
@@ -343,6 +393,25 @@ def accuracy_experiment(center_latitude, center_longitude, center_latitude_float
         # Write Proposed Accuracy Result to file
         with open("Outputs/accuracyProp.txt", "a") as f:
             f.write(f"{(accuracy_prop)}\n")
+
+    # Saves all raw data for accuracy
+    all_raw_data_ref = np.array(all_raw_data_ref, dtype=object)
+    all_raw_data_prop = np.array(all_raw_data_prop, dtype=object)
+    header = "Repetition,Latitude,Longitude,Ground Truth,System Result,Final Result"
+    np.savetxt(
+        'ExperimentsAllRawData/accuracy_experiment_all_raw_data_ref.csv',
+        all_raw_data_ref, delimiter=',', 
+        header=header,
+        comments='',
+        fmt='%s'
+    )
+    np.savetxt(
+        'ExperimentsAllRawData/accuracy_experiment_all_raw_data_prop.csv',
+        all_raw_data_prop, delimiter=',', 
+        header=header,
+        comments='',
+        fmt='%s'
+    )
 
     # Calculate staistics and present in table
     accuracy_stats = stats.main(files)

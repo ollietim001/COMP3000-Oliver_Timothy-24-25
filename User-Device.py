@@ -209,6 +209,9 @@ def scalability_experiment(user_location_terms_ref, user_location_terms_prop, nu
 
     requests_counts = [1, 10, 50, 100]
 
+    all_raw_data_ref = []
+    all_raw_data_prop = []
+
     # Run different test cases
     for num_requests in requests_counts:
 
@@ -283,6 +286,19 @@ def scalability_experiment(user_location_terms_ref, user_location_terms_prop, nu
             with open("Outputs/scaleLatencyOutProp.txt", "a") as f:
                 f.write(f"{(latency_prop)}\n")
 
+        # Load temporary scalability data
+        scaleRunOutRef = np.loadtxt(files[0])
+        scaleRunOutProp = np.loadtxt(files[1])
+        scaleThroughputOutRef = np.loadtxt(files[2])
+        scaleThroughputOutProp = np.loadtxt(files[3])
+        scaleLatencyOutRef = np.loadtxt(files[4])
+        scaleLatencyOutProp = np.loadtxt(files[5])
+
+        scalability_experiment_all_raw_data_ref = np.column_stack((np.full(len(scaleRunOutRef), num_requests), scaleRunOutRef, scaleThroughputOutRef, scaleLatencyOutRef))
+        scalability_experiment_all_raw_data_prop = np.column_stack((np.full(len(scaleRunOutProp), num_requests), scaleRunOutProp, scaleThroughputOutProp, scaleLatencyOutProp))
+        all_raw_data_ref.append(scalability_experiment_all_raw_data_ref)
+        all_raw_data_prop.append(scalability_experiment_all_raw_data_prop)
+
         # Calculate staistics and present in table
         scalability_stats = stats.main(files)
 
@@ -304,6 +320,22 @@ def scalability_experiment(user_location_terms_ref, user_location_terms_prop, nu
             f"{round(scalability_stats[5]['Mean'], 3)} ± {round(scalability_stats[5]['Standard Deviation'], 3)} (95% CI: {round(scalability_stats[5]['95% Confidence Interval'][0], 3)}, {round(scalability_stats[5]['95% Confidence Interval'][1], 3)})"]
         )
 
+    # Saves all the raw runtime data
+    all_raw_data_ref = np.vstack(all_raw_data_ref)
+    all_raw_data_prop = np.vstack(all_raw_data_prop)
+    header = "# of Queries,Total Runtime,Throughput,Latency"
+    np.savetxt(
+        'ExperimentsAllRawData/scalability_experiment_all_raw_data_ref.csv',
+        all_raw_data_ref, delimiter=',', 
+        header=header,
+        comments=''
+    )
+    np.savetxt(
+        'ExperimentsAllRawData/scalability_experiment_all_raw_data_prop.csv',
+        all_raw_data_prop, delimiter=',',
+        header=header,
+        comments=''
+    )
 
     head = ["Queries", "Metric", "Ref. Alg.", "Prop. Alg."]
 
@@ -332,6 +364,11 @@ def runtime_experiment(user_latitude, user_longitude, public_key, num_repitions_
     ]
 
     geofence_counts = [1, 10, 100, 200, 300]
+
+    all_raw_data_ref = []
+    all_raw_data_prop = []
+    all_raw_data_ref_comm = []
+    all_raw_data_prop_comm = []
 
     # Run different test cases
     for num_geofences in geofence_counts:
@@ -364,6 +401,22 @@ def runtime_experiment(user_latitude, user_longitude, public_key, num_repitions_
 
         np.savetxt(files[6], total_runtime_ref)
         np.savetxt(files[7], total_runtime_prop)
+        
+        runtime_experiment_all_raw_data_ref = np.column_stack((np.full(len(data1), num_geofences), data1, data3, data5, total_runtime_ref))
+        runtime_experiment_all_raw_data_prop = np.column_stack((np.full(len(data2), num_geofences), data2, data4, data6, total_runtime_prop))
+        all_raw_data_ref.append(runtime_experiment_all_raw_data_ref)
+        all_raw_data_prop.append(runtime_experiment_all_raw_data_prop)
+
+        # Load temporary communication data
+        commGeoOutRef = np.loadtxt(files[8])
+        commGeoOutProp = np.loadtxt(files[9])
+        commCarerOutRef = np.loadtxt(files[10])
+        commCarerOutProp = np.loadtxt(files[11])
+
+        communication_experiment_all_raw_data_ref = np.column_stack((np.full(len(commGeoOutRef), num_geofences), commGeoOutRef, commCarerOutRef))
+        communication_experiment_all_raw_data_prop = np.column_stack((np.full(len(commGeoOutProp), num_geofences), commGeoOutProp, commCarerOutProp))
+        all_raw_data_ref_comm.append(communication_experiment_all_raw_data_ref)
+        all_raw_data_prop_comm.append(communication_experiment_all_raw_data_prop)
 
         # Calculate staistics and present in table
         runtime_stats = stats.main(files)
@@ -405,6 +458,39 @@ def runtime_experiment(user_latitude, user_longitude, public_key, num_repitions_
             f"{round(runtime_stats[11]['Mean'], 3)}"]
         )
 
+    # Saves all the raw runtime data
+    all_raw_data_ref = np.vstack(all_raw_data_ref)
+    all_raw_data_prop = np.vstack(all_raw_data_prop)
+    header = "# of Geofences,Runtime Encrypt,Runtime Compute,Runtime Evaluate,Runtime Total"
+    np.savetxt(
+        'ExperimentsAllRawData/runtime_experiment_all_raw_data_ref.csv',
+        all_raw_data_ref, delimiter=',', 
+        header=header,
+        comments=''
+    )
+    np.savetxt(
+        'ExperimentsAllRawData/runtime_experiment_all_raw_data_prop.csv',
+        all_raw_data_prop, delimiter=',',
+        header=header,
+        comments=''
+    )
+
+    # Saves all the raw communication data
+    all_raw_data_ref_comm = np.vstack(all_raw_data_ref_comm)
+    all_raw_data_prop_comm = np.vstack(all_raw_data_prop_comm)
+    header_comm = "# of Geofences,Geofence Service Recieved,Carer Device Recieved"
+    np.savetxt(
+        'ExperimentsAllRawData/communication_experiment_all_raw_data_ref.csv',
+        all_raw_data_ref_comm, delimiter=',', 
+        header=header_comm,
+        comments=''
+    )
+    np.savetxt(
+        'ExperimentsAllRawData/communication_experiment_all_raw_data_prop.csv',
+        all_raw_data_prop_comm, delimiter=',',
+        header=header_comm,
+        comments=''
+    )
 
     head = ["Geofences", "Metric", "Ref. Alg.", "Prop. Alg."]
     head_comm = ["Geofences", "Metric", "Ref. Alg.", "Prop. Alg."]
